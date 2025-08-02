@@ -17,9 +17,13 @@ class TemperatureMonitor:
         self.monitor_thread = None
         self._stop_event = threading.Event()
 
-        self.pi = pigpio.pi()
-        if not self.pi.connected:
-            raise RuntimeError("No connection to pigpio daemon. Make sure it is running.")
+        # The debug mode allows running without pigpio for testing purposes
+        self.debug = self.config_manager.get_temperature_monitoring_config().get('debug', False)
+
+        if not self.debug:
+            self.pi = pigpio.pi()
+            if not self.pi.connected:
+                raise RuntimeError("No connection to pigpio daemon. Make sure it is running.")
 
         self.gpio_pin = self.config_manager.get_fan_config().get('gpio_pin', 13)
 
@@ -164,8 +168,9 @@ class TemperatureMonitor:
 
         # Here you would set the actual fan speed using GPIO or other methods
         logger.info(f"Setting fan speed to {speed}% based on temperature {current_max_temp}°C")
-        duty_cycle = int(speed * 10000)  # 0-1000000
-        self.pi.hardware_PWM(self.gpio_pin, 50, duty_cycle)
+        if not self.debug:
+            duty_cycle = int(speed * 10000)  # 0-1000000
+            self.pi.hardware_PWM(self.gpio_pin, 50, duty_cycle)
 
     def get_latest_temperatures(self) -> Dict[str, Any]:
         """Returns the latest temperature data of all nodes"""
