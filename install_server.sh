@@ -1,16 +1,17 @@
 #!/bin/bash
-# Sipeed NanoCluster Client Service Installation Script
+
+# Sipeed NanoCluster Server Installation Script
 
 set -e
 
 # Configuration
-SERVICE_NAME="sipeed-nanocluster-client"
+SERVICE_NAME="sipeed-nanocluster-server"
 SERVICE_USER="sipeed-nanocluster"
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 PYTHON_VENV="${INSTALL_DIR}/venv"
 
-echo "=== Sipeed NanoCluster Client Service Installation ==="
+echo "=== Sipeed NanoCluster Server Installation ==="
 echo "Installing in directory: $INSTALL_DIR"
 
 # Check if running as root
@@ -19,13 +20,15 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Check if we're in the correct directory (should contain src/client.py)
-if [ ! -f "$INSTALL_DIR/src/client.py" ]; then
-    echo "ERROR: client.py not found in src/ directory!"
-    echo "Please make sure you're running this script from the Sipeed-NanoCluster-Server repository root."
+# Check if we're in the correct directory (should contain src/server.py)
+if [ ! -f "$INSTALL_DIR/src/server.py" ]; then
+    echo "ERROR: server.py not found in src/ directory!"
+    echo "Please make sure you're running this script from the sipeed-nanocluster-server repository root."
     echo ""
     echo "Expected usage:"
-    echo "  sudo ./install_client.sh"
+    echo "  git clone https://github.com/meteyou/sipeed-nanocluster-server.git"
+    echo "  cd sipeed-nanocluster-server"
+    echo "  sudo ./install_server.sh"
     exit 1
 fi
 
@@ -62,27 +65,35 @@ fi
 echo "Setting up directory permissions..."
 chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 
-# Create Python virtual environment
-echo "Setting up Python virtual environment..."
-sudo -u "$SERVICE_USER" python3 -m venv "$PYTHON_VENV"
+# Create or update Python virtual environment
+if [ -d "$PYTHON_VENV" ]; then
+    echo "Virtual environment already exists, updating..."
+else
+    echo "Creating Python virtual environment..."
+    sudo -u "$SERVICE_USER" python3 -m venv "$PYTHON_VENV"
+fi
 
-# Install dependencies
-echo "Installing Python dependencies..."
+# Install/update dependencies
+echo "Installing/updating Python dependencies..."
 sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install --upgrade pip
-sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml gunicorn
+sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install -r requirements.txt
 
 # Copy example configuration file if it doesn't exist
-if [ ! -f "$INSTALL_DIR/client_config.yaml" ]; then
+if [ ! -f "$INSTALL_DIR/config.yaml" ]; then
     echo "Creating default configuration file..."
-    sudo -u "$SERVICE_USER" cp "$INSTALL_DIR/client_config.yaml.example" "$INSTALL_DIR/client_config.yaml"
-    echo "Please edit $INSTALL_DIR/client_config.yaml to configure the client."
+    sudo -u "$SERVICE_USER" cp "$INSTALL_DIR/config.yaml.example" "$INSTALL_DIR/config.yaml"
+    echo "Please edit $INSTALL_DIR/config.yaml to configure the server."
 fi
+
+# Set ownership of configuration files
+echo "Setting ownership of configuration files..."
+chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/config.yaml"
 
 # Create systemd service file
 echo "Creating systemd service file..."
 cat > "$SERVICE_FILE" << EOF
 [Unit]
-Description=Sipeed NanoCluster Client Service
+Description=Sipeed NanoCluster Server Service
 After=network.target
 
 [Service]
@@ -91,7 +102,7 @@ User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
 Environment=PATH=$PYTHON_VENV/bin
-ExecStart=$PYTHON_VENV/bin/gunicorn --config client_config_gunicorn.py src.client:app
+ExecStart=$PYTHON_VENV/bin/gunicorn --config server_gunicorn_config.py src.server:app
 Restart=always
 RestartSec=10
 
@@ -104,12 +115,11 @@ echo "Enabling systemd service..."
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 
-
 echo ""
 echo "=== Installation Complete ==="
 echo "Service installed as: $SERVICE_NAME"
 echo "Installation directory: $INSTALL_DIR"
-echo "Configuration file: $INSTALL_DIR/client_config.yaml"
+echo "Configuration file: $INSTALL_DIR/config.yaml"
 echo ""
 echo "To start the service:"
 echo "  sudo systemctl start $SERVICE_NAME"
@@ -120,5 +130,5 @@ echo ""
 echo "To view logs:"
 echo "  sudo journalctl -u $SERVICE_NAME -f"
 echo ""
-echo "To test the API:"
-echo "  curl http://localhost:5001/api/temperature"
+echo "To test the web interface:"
+echo "  Open browser: http://localhost:5000"
