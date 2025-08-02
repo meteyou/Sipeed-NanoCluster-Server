@@ -13,6 +13,7 @@ class TemperatureMonitor:
     def __init__(self, config_manager: ConfigManager):
         self.config_manager = config_manager
         self.temperature_data = {}
+        self.fan_speed = 0
         self.is_running = False
         self.monitor_thread = None
         self._stop_event = threading.Event()
@@ -159,17 +160,17 @@ class TemperatureMonitor:
 
         # Calculate fan speed based on temperature
         if current_max_temp < min_temp:
-            speed = min_speed
+            self.fan_speed = min_speed
         elif current_max_temp > max_temp:
-            speed = max_speed
+            self.fan_speed = max_speed
         else:
             # Linear interpolation between min and max
-            speed = int(min_speed + (max_speed - min_speed) * (current_max_temp - min_temp) / (max_temp - min_temp))
+            self.fan_speed = int(min_speed + (max_speed - min_speed) * (current_max_temp - min_temp) / (max_temp - min_temp))
 
         # Here you would set the actual fan speed using GPIO or other methods
-        logger.info(f"Setting fan speed to {speed}% based on temperature {current_max_temp}°C")
+        logger.info(f"Setting fan speed to {self.fan_speed}% based on temperature {current_max_temp}°C")
         if not self.debug:
-            duty_cycle = int(speed * 10000)  # 0-1000000
+            duty_cycle = int(self.fan_speed * 10000)  # 0-1000000
             self.pi.hardware_PWM(self.gpio_pin, 50, duty_cycle)
 
     def get_latest_temperatures(self) -> Dict[str, Any]:
@@ -197,3 +198,7 @@ class TemperatureMonitor:
     def get_all_temperature_data(self) -> Dict[str, List[Dict[str, Any]]]:
         """Returns all stored temperature data"""
         return self.temperature_data.copy()
+
+    def get_fan_speed(self) -> int:
+        """Returns the current fan speed"""
+        return self.fan_speed

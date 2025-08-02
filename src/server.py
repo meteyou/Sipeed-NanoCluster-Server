@@ -48,6 +48,16 @@ def api_fan_config():
     return jsonify(fan_config)
 
 
+@app.route('/api/fan/status')
+def api_fan_status():
+    """API endpoint to get fan configuration"""
+    fan_speed = temperature_monitor.get_fan_speed()
+    return jsonify({
+        'success': True,
+        'fan_speed': fan_speed
+    })
+
+
 if __name__ == '__main__':
     host, port = config_manager.get_server_config()
     app.run(host=host, port=port, debug=True)
