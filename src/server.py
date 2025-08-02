@@ -1,9 +1,8 @@
 from flask import Flask, render_template, jsonify
-from server_config_manager import ConfigManager
-from server_temperature_monitor import TemperatureMonitor
+from src.server_config_manager import ConfigManager
+from src.server_temperature_monitor import TemperatureMonitor
 import logging
 import atexit
-import requests
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
