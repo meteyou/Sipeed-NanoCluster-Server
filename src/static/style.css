@@ -1,0 +1,132 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: #333;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+h2 {
+    margin-top: 0;
+}
+
+.section {
+    background: white;
+    margin-bottom: 20px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Tabellen-Styling */
+#nodes-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#nodes-table th,
+#nodes-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+#nodes-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#nodes-table tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+#nodes-table tr:hover {
+    background-color: #e9ecef;
+}
+
+#nodes-table td.slot {
+    width: 50px;
+}
+
+/* Status-Styling */
+#nodes-table td:nth-child(4) {
+    font-weight: bold;
+}
+
+.status-active {
+    font-weight: bold;
+    color: #28a745;
+}
+
+.status-inactive {
+    font-weight: bold;
+    color: #6c757d;
+}
+
+.status-error {
+    font-weight: bold;
+    color: #dc3545;
+}
+
+/* Temperatur-Spalte */
+#nodes-table td:nth-child(5) {
+    font-family: monospace;
+    font-weight: bold;
+    color: #dc3545;
+}
+
+.temperature {
+    font-family: monospace;
+    font-weight: bold;
+    text-align: center;
+}
+
+.temperature.success {
+    color: #dc3545;
+}
+
+.temperature.error {
+    color: #fd7e14;
+}
+
+.temperature.offline {
+    color: #6c757d;
+}
+
+/* Zuletzt Aktualisiert Spalte */
+.last-update {
+    font-family: monospace;
+    font-size: 12px;
+    color: #6c757d;
+    text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #nodes-table {
+        font-size: 14px;
+    }
+
+    #nodes-table th,
+    #nodes-table td {
+        padding: 8px;
+    }
+
+    button {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}

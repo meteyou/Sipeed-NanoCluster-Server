@@ -9,6 +9,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "flask>=3.1.1",
+    "pigpio>=1.78",
     "pyyaml>=6.0.2",
     "requests>=2.32.4",
+    "pigpio>=1.78",
 ]

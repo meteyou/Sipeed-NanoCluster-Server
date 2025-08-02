@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sipeed NanoCluster</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Sipeed Nanocluster</h1>
+
+        <div class="section">
+            <h2>Nodes</h2>
+            <table id="nodes-table">
+                <thead>
+                    <tr>
+                        <th>Slot</th>
+                        <th>Name</th>
+                        <th>IP:Port</th>
+                        <th>Status</th>
+                        <th>Temp.</th>
+                        <th>Last Update</th>
+                    </tr>
+                </thead>
+                <tbody id="nodes-container">
+                    <!-- Nodes werden hier dynamisch geladen -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Fan Konfiguration</h2>
+            <div id="fan-config">
+                <!-- Fan-Konfiguration wird hier angezeigt -->
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        let nodesList = [];
+
+        // Lade Nodes beim Start
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNodes();
+            loadFanConfig();
+            // Starte automatisches Temperatur-Polling alle 5 Sekunden
+            setInterval(updateTemperatures, 5000);
+        });
+
+        function loadNodes() {
+            fetch('/api/nodes')
+                .then(response => response.json())
+                .then(nodes => {
+                    nodesList = nodes; // Speichere Nodes für spätere Verwendung
+                    const container = document.getElementById('nodes-container');
+                    container.innerHTML = '';
+
+                    nodes.forEach(node => {
+                        const nodeElement = document.createElement('tr');
+                        nodeElement.className = 'node-row';
+                        nodeElement.dataset.node = node.name;
+                        nodeElement.innerHTML = `
+                            <td class="slot">Slot ${node.slot}</td>
+                            <td>${node.name}</td>
+                            <td>${node.ip}:${node.port}</td>
+                            <td class="status status-${node.enabled ? 'active' : 'inactive'}">${node.enabled ? 'Aktiv' : 'Inaktiv'}</td>
+                            <td class="temperature">---</td>
+                            <td class="last-update">---</td>
+                        `;
+                        container.appendChild(nodeElement);
+                    });
+
+                    // Lade Temperaturen sofort nach dem Laden der Nodes
+                    updateTemperatures();
+                })
+                .catch(error => console.error('Error loading nodes:', error));
+        }
+
+        function updateTemperatures() {
+            fetch(`/api/nodes/temperatures?timestamp=${Date.now()}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error(`Error getting temperatures`, data.message);
+                        return;
+                    }
+
+                    nodesList.forEach(node => {
+                        const nodeRow = document.querySelector(`.node-row[data-node="${node.name}"]`);
+                        if (!nodeRow) return;
+
+                        if (!node.enabled) {
+                            const statusCell = nodeRow.querySelector('.status');
+                            statusCell.classList.remove('status-active', 'status-inactive');
+                            statusCell.classList.add('status-inactive');
+                            statusCell.innerHTML = 'Inaktiv';
+                            return;
+                        }
+
+                        const statusCell = nodeRow.querySelector('.status');
+
+                        if (!data.temperatures || !data.temperatures[node.name]) {
+                            statusCell.classList.remove('status-active', 'status-inactive');
+                            statusCell.classList.add('status-error');
+                            statusCell.innerHTML = 'ERROR';
+                            return;
+                        }
+
+                        const nodeData = data.temperatures[node.name] ?? {};
+
+                        const temperatureCell = nodeRow.querySelector('td.temperature');
+                        temperatureCell.innerHTML = nodeData.temperature || '---';
+
+                        const lastUpdateCell = nodeRow.querySelector('.last-update');
+                        lastUpdateCell.innerHTML = nodeData.timestamp ? new Date(nodeData.timestamp).toLocaleString() : '---';
+
+                    });
+                })
+                .catch(error => {
+                    console.error(`Error getting status`, error);
+                });
+        }
+
+        function loadFanConfig() {
+            fetch('/api/fan/config')
+                .then(response => response.json())
+                .then(config => {
+                    const container = document.getElementById('fan-config');
+                    container.innerHTML = `
+                        <p>GPIO Pin: ${config.gpio_pin}</p>
+                        <p>Min. Temperatur: ${config.min_temp}°C</p>
+                        <p>Max. Temperatur: ${config.max_temp}°C</p>
+                        <p>Min. Speed: ${config.min_speed}%</p>
+                        <p>Max. Speed: ${config.max_speed}%</p>
+                    `;
+                })
+                .catch(error => console.error('Error loading fan config:', error));
+        }
+    </script>
+</body>
+</html>

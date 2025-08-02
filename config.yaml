@@ -11,27 +11,27 @@ nodes:
   - name: "cluster-cm4-1"
     slot: 1
     ip: "192.168.0.162"
-    port: 5000
+    port: 5001
     enabled: true
   - name: "cluster-cm4-2"
     slot: 3
     ip: "192.168.0.163"
-    port: 5000
+    port: 5001
     enabled: true
   - name: "cluster-cb2-1"
     slot: 5
     ip: "192.168.0.164"
-    port: 5000
+    port: 5001
     enabled: true
   - name: "cluster-cm5-1"
     slot: 6
     ip: "192.168.0.165"
-    port: 5000
+    port: 5001
     enabled: false
   - name: "cluster-cm5-2"
     slot: 7
     ip: "192.168.0.166"
-    port: 5000
+    port: 5001
     enabled: false
 
 fan:
