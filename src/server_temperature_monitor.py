@@ -125,7 +125,6 @@ class TemperatureMonitor:
         self.temperature_data[node_name].append({
             'timestamp': timestamp,
             'temperature': temperature,
-            'slot': node['slot']
         })
 
         # Keep only the last 100 entries (to save memory)
@@ -184,18 +183,10 @@ class TemperatureMonitor:
                 latest_entry = data_list[-1]
                 latest_data[node_name] = {
                     'temperature': latest_entry['temperature'],
-                    'timestamp': latest_entry['timestamp'],
-                    'slot': latest_entry['slot']
+                    'timestamp': latest_entry['timestamp']
                 }
 
         return latest_data
-
-    def get_node_temperature_history(self, node_name: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """Returns the temperature history of a specific node"""
-        if node_name not in self.temperature_data:
-            return []
-
-        return self.temperature_data[node_name][-limit:]
 
     def get_all_temperature_data(self) -> Dict[str, List[Dict[str, Any]]]:
         """Returns all stored temperature data"""
