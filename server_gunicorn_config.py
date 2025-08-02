@@ -11,7 +11,7 @@ server_host, server_port = config_manager.get_server_config()
 
 # Gunicorn configuration
 bind = f"{server_host}:{server_port}"
-workers = 2
+workers = 1
 worker_class = "sync"
 timeout = 120
 keepalive = 5
