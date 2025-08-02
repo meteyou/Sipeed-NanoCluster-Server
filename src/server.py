@@ -21,10 +21,7 @@ atexit.register(temperature_monitor.stop_monitoring)
 @app.route('/')
 def index():
     """Overview page with all nodes and fan configuration"""
-    nodes = config_manager.get_nodes()
-    fan_config = config_manager.get_fan_config()
-    latest_temperatures = temperature_monitor.get_latest_temperatures()
-    return render_template('index.html', nodes=nodes, fan_config=fan_config, temperatures=latest_temperatures)
+    return render_template('index.html')
 
 
 @app.route('/api/nodes')
