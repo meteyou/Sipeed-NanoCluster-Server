@@ -1,0 +1,42 @@
+server:
+  host: "0.0.0.0"
+  port: 3001
+
+temperature_monitoring:
+  interval_seconds: 30
+  endpoint: "/api/temperature"
+  timeout: 5
+
+nodes:
+  - name: "cluster-cm4-1"
+    slot: 1
+    ip: "192.168.0.162"
+    port: 5000
+    enabled: true
+  - name: "cluster-cm4-2"
+    slot: 3
+    ip: "192.168.0.163"
+    port: 5000
+    enabled: true
+  - name: "cluster-cb2-1"
+    slot: 5
+    ip: "192.168.0.164"
+    port: 5000
+    enabled: true
+  - name: "cluster-cm5-1"
+    slot: 6
+    ip: "192.168.0.165"
+    port: 5000
+    enabled: false
+  - name: "cluster-cm5-2"
+    slot: 7
+    ip: "192.168.0.166"
+    port: 5000
+    enabled: false
+
+fan:
+  gpio_pin: 13
+  min_temp: 40
+  max_temp: 70
+  min_speed: 30
+  max_speed: 100

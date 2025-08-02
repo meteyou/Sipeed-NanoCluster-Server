@@ -1,0 +1,16 @@
+# Sipeed NanoCluster Client Service Configuration
+
+server:
+  host: "0.0.0.0"
+  port: 5001
+  debug: false
+
+temperature:
+  thermal_path: "/sys/class/thermal/thermal_zone0/temp"
+  # Alternative paths for different systems:
+  # thermal_path: "/sys/class/thermal/thermal_zone1/temp"  # Some systems use zone1
+  # thermal_path: "/sys/devices/virtual/thermal/thermal_zone0/temp"  # Alternative path
+
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
