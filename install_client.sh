@@ -69,7 +69,7 @@ sudo -u "$SERVICE_USER" python3 -m venv "$PYTHON_VENV"
 # Install dependencies
 echo "Installing Python dependencies..."
 sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install --upgrade pip
-sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml
+sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml gunicorn
 
 # Create systemd service file
 echo "Creating systemd service file..."
@@ -82,9 +82,9 @@ After=network.target
 Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
-WorkingDirectory=$INSTALL_DIR/src
+WorkingDirectory=$INSTALL_DIR
 Environment=PATH=$PYTHON_VENV/bin
-ExecStart=$PYTHON_VENV/bin/python client.py
+ExecStart=$PYTHON_VENV/bin/gunicorn --config client_config_gunicorn.py src.client:app
 Restart=always
 RestartSec=10
 

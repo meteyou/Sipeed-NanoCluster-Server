@@ -8,58 +8,26 @@ This service is designed to run on each cluster node.
 from flask import Flask, jsonify
 import os
 import logging
-from typing import Optional
+
+from src.client_config import load_config, DEFAULT_THERMAL_PATH, DEFAULT_HOST, DEFAULT_PORT
+from src.client_temperature_reader import ClientTemperatureReader
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load configuration
+config = load_config("../client_config.yaml")
+
+# Configure logging from config
+log_level = config.get('logging', {}).get('level', 'INFO')
+logging.getLogger().setLevel(getattr(logging, log_level.upper()))
+
 app = Flask(__name__)
 
-# Configuration
-DEFAULT_THERMAL_PATH = "/sys/class/thermal/thermal_zone0/temp"
-DEFAULT_PORT = 5001
-DEFAULT_HOST = "0.0.0.0"
-
-
-class TemperatureReader:
-    def __init__(self, thermal_path: str = DEFAULT_THERMAL_PATH):
-        self.thermal_path = thermal_path
-
-    def read_temperature(self) -> Optional[float]:
-        """
-        Read temperature from the thermal zone file.
-        Returns temperature in Celsius or None if reading fails.
-        """
-        try:
-            if not os.path.exists(self.thermal_path):
-                logger.error(f"Thermal zone file not found: {self.thermal_path}")
-                return None
-
-            with open(self.thermal_path, 'r') as f:
-                temp_millidegrees = f.read().strip()
-
-            # Convert from millidegrees to degrees Celsius
-            temp_celsius = float(temp_millidegrees) / 1000.0
-            logger.debug(f"Read temperature: {temp_celsius}°C")
-            return temp_celsius
-
-        except FileNotFoundError:
-            logger.error(f"Thermal zone file not found: {self.thermal_path}")
-            return None
-        except PermissionError:
-            logger.error(f"Permission denied reading thermal zone file: {self.thermal_path}")
-            return None
-        except ValueError as e:
-            logger.error(f"Invalid temperature data in {self.thermal_path}: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Unexpected error reading temperature: {e}")
-            return None
-
-
-# Initialize temperature reader
-temp_reader = TemperatureReader()
+# Initialize temperature reader with config
+thermal_path = config.get('temperature', {}).get('thermal_path', DEFAULT_THERMAL_PATH)
+temp_reader = ClientTemperatureReader(logger, thermal_path)
 
 
 @app.route('/api/temperature', methods=['GET'])
@@ -162,34 +130,17 @@ def index():
 
 
 if __name__ == '__main__':
-    import argparse
+    # When run directly (not via Gunicorn), use config for defaults
+    server_config = config.get('server', {})
+    host = server_config.get('host', DEFAULT_HOST)
+    port = server_config.get('port', DEFAULT_PORT)
+    debug = server_config.get('debug', False)
 
-    parser = argparse.ArgumentParser(description='Sipeed NanoCluster Client Service')
-    parser.add_argument('--host', default=DEFAULT_HOST,
-                       help=f'Host to bind to (default: {DEFAULT_HOST})')
-    parser.add_argument('--port', type=int, default=DEFAULT_PORT,
-                       help=f'Port to bind to (default: {DEFAULT_PORT})')
-    parser.add_argument('--thermal-path', default=DEFAULT_THERMAL_PATH,
-                       help=f'Path to thermal zone file (default: {DEFAULT_THERMAL_PATH})')
-    parser.add_argument('--debug', action='store_true',
-                       help='Enable debug logging')
-
-    args = parser.parse_args()
-
-    if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-        app.config['DEBUG'] = True
-
-    # Update thermal path if specified
-    if args.thermal_path != DEFAULT_THERMAL_PATH:
-        temp_reader.thermal_path = args.thermal_path
-        logger.info(f"Using custom thermal path: {args.thermal_path}")
-
-    logger.info(f"Starting Temperature Client Service on {args.host}:{args.port}")
+    logger.info(f"Starting Temperature Client Service on {host}:{port}")
     logger.info(f"Thermal zone path: {temp_reader.thermal_path}")
 
     try:
-        app.run(host=args.host, port=args.port, debug=args.debug)
+        app.run(host=host, port=port, debug=debug)
     except KeyboardInterrupt:
         logger.info("Service stopped by user")
     except Exception as e:
