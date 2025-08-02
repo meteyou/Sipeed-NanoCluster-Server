@@ -5,14 +5,14 @@ Reads configuration from client_config.yaml
 """
 from src.client_config import load_config
 
-config = load_config(None, 'client_config.yaml')
+client_config = load_config(None, 'client_config.yaml')
 
 # Set host and port from configuration or use defaults
-host = config.get('host', '0.0.0.0')
-port = config.get('port', 5001)
+client_host = client_config.get('host', '0.0.0.0')
+client_port = client_config.get('port', 5001)
 
 # Gunicorn configuration
-bind = f"{host}:{port}"
+bind = f"{client_host}:{client_port}"
 workers = 1
 worker_class = "sync"
 timeout = 30
