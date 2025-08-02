@@ -22,11 +22,9 @@ fi
 # Check if we're in the correct directory (should contain src/client.py)
 if [ ! -f "$INSTALL_DIR/src/client.py" ]; then
     echo "ERROR: client.py not found in src/ directory!"
-    echo "Please make sure you're running this script from the sipeed-nanocluster-server repository root."
+    echo "Please make sure you're running this script from the Sipeed-NanoCluster-Server repository root."
     echo ""
     echo "Expected usage:"
-    echo "  git clone https://github.com/meteyou/sipeed-nanocluster-server.git"
-    echo "  cd sipeed-nanocluster-server"
     echo "  sudo ./install_client.sh"
     exit 1
 fi
