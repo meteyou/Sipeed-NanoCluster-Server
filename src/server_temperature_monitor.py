@@ -147,6 +147,7 @@ class TemperatureMonitor:
         max_speed = fan_config.get('max_speed', 100)
 
         current_max_temp = float("-inf")
+        hottest_node = None
 
         for node_name, data_list in self.temperature_data.items():
             if not data_list:
@@ -157,6 +158,7 @@ class TemperatureMonitor:
 
             if temperature > current_max_temp:
                 current_max_temp = temperature
+                hottest_node = node_name
 
         # Calculate fan speed based on temperature
         if current_max_temp < min_temp:
@@ -168,7 +170,7 @@ class TemperatureMonitor:
             self.fan_speed = int(min_speed + (max_speed - min_speed) * (current_max_temp - min_temp) / (max_temp - min_temp))
 
         # Here you would set the actual fan speed using GPIO or other methods
-        logger.info(f"Setting fan speed to {self.fan_speed}% based on temperature {current_max_temp}°C")
+        logger.info(f"Setting fan speed to {self.fan_speed}% based on temperature {current_max_temp}°C ({hottest_node})")
         if not self.debug:
             duty_cycle = int(self.fan_speed * 10000)  # 0-1000000
             self.pi.hardware_PWM(self.gpio_pin, 50, duty_cycle)
