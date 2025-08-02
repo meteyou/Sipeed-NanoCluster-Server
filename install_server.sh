@@ -38,6 +38,32 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
+# Install system dependencies (pigpio for GPIO control)
+echo "Installing system dependencies..."
+if command -v apt-get &> /dev/null; then
+    echo "Updating package lists..."
+    apt-get update
+    echo "Installing pigpio and python3-pigpio..."
+    apt-get install -y pigpio python3-pigpio
+
+    echo "Enabling and starting pigpio daemon..."
+    systemctl enable pigpiod
+    systemctl start pigpiod
+
+    # Verify pigpio daemon is running
+    if systemctl is-active --quiet pigpiod; then
+        echo "pigpio daemon started successfully"
+    else
+        echo "WARNING: pigpio daemon failed to start. GPIO control may not work."
+    fi
+else
+    echo "WARNING: apt-get not found. Please install pigpio manually:"
+    echo "  sudo apt-get update"
+    echo "  sudo apt-get install pigpio python3-pigpio"
+    echo "  sudo systemctl enable pigpiod"
+    echo "  sudo systemctl start pigpiod"
+fi
+
 # Stop and disable existing service if it exists
 if systemctl is-active --quiet "$SERVICE_NAME"; then
     echo "Stopping existing service..."
