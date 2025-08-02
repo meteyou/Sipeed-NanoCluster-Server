@@ -119,6 +119,23 @@
                 .catch(error => {
                     console.error(`Error getting status`, error);
                 });
+
+            fetch(`/api/fan/status?timestamp=${Date.now()}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error(`Error getting temperatures`, data.message);
+                        return;
+                    }
+
+                    const fanStatusElement = document.getElementById('fan-status');
+                    fanStatusElement.innerHTML = `<strong>Current Speed:</strong> ${data.fan_speed.toFixed(0)}%`;
+                })
+                .catch(error => {
+                    console.error(`Error getting status`, error);
+                });
+
+
         }
 
         function loadFanConfig() {
@@ -133,6 +150,7 @@
                             Min. Speed: ${config.min_speed}%<br />
                             Max. Speed: ${config.max_speed}%
                         </p>
+                        <p id="fan-status"></p>
                     `;
                 })
                 .catch(error => console.error('Error loading fan config:', error));
