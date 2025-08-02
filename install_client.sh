@@ -71,6 +71,13 @@ echo "Installing Python dependencies..."
 sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install --upgrade pip
 sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml gunicorn
 
+# Copy example configuration file if it doesn't exist
+if [ ! -f "$INSTALL_DIR/client_config.yaml" ]; then
+    echo "Creating default configuration file..."
+    sudo -u "$SERVICE_USER" cp "$INSTALL_DIR/client_config.yaml.example" "$INSTALL_DIR/client_config.yaml"
+    echo "Please edit $INSTALL_DIR/client_config.yaml to configure the client."
+fi
+
 # Create systemd service file
 echo "Creating systemd service file..."
 cat > "$SERVICE_FILE" << EOF
