@@ -2,7 +2,7 @@
 import os
 from typing import Optional
 
-class ClientTemperatureReader:
+class AgentTemperatureReader:
     def __init__(self, logger, thermal_path: str = None):
         self.logger = logger
         self.thermal_path = thermal_path

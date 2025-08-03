@@ -1,10 +1,10 @@
 #!/bin/bash
-# Sipeed NanoCluster Client Service Installation Script
+# Sipeed NanoCluster Agent Service Installation Script
 
 set -e
 
 # Configuration
-SERVICE_NAME="sipeed-nanocluster-client"
+SERVICE_NAME="sipeed-nanocluster-agent"
 SERVICE_USER="sipeed-nanocluster"
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
@@ -19,13 +19,13 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Check if we're in the correct directory (should contain src/client.py)
-if [ ! -f "$INSTALL_DIR/src/client.py" ]; then
-    echo "ERROR: client.py not found in src/ directory!"
+# Check if we're in the correct directory (should contain src/agent.py)
+if [ ! -f "$INSTALL_DIR/src/agent.py" ]; then
+    echo "ERROR: agent.py not found in src/ directory!"
     echo "Please make sure you're running this script from the Sipeed-NanoCluster-Server repository root."
     echo ""
     echo "Expected usage:"
-    echo "  sudo ./install_client.sh"
+    echo "  sudo ./install_agent.sh"
     exit 1
 fi
 
@@ -69,20 +69,20 @@ sudo -u "$SERVICE_USER" python3 -m venv "$PYTHON_VENV"
 # Install dependencies
 echo "Installing Python dependencies..."
 sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install --upgrade pip
-sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml gunicorn
+sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml waitress
 
 # Copy example configuration file if it doesn't exist
-if [ ! -f "$INSTALL_DIR/client_config.yaml" ]; then
+if [ ! -f "$INSTALL_DIR/agent_config.yaml" ]; then
     echo "Creating default configuration file..."
-    sudo -u "$SERVICE_USER" cp "$INSTALL_DIR/client_config.yaml.example" "$INSTALL_DIR/client_config.yaml"
-    echo "Please edit $INSTALL_DIR/client_config.yaml to configure the client."
+    sudo -u "$SERVICE_USER" cp "$INSTALL_DIR/agent_config.yaml.example" "$INSTALL_DIR/agent_config.yaml"
+    echo "Please edit $INSTALL_DIR/agent_config.yaml to configure the agent."
 fi
 
 # Create systemd service file
 echo "Creating systemd service file..."
 cat > "$SERVICE_FILE" << EOF
 [Unit]
-Description=Sipeed NanoCluster Client Service
+Description=Sipeed NanoCluster Agent Service
 After=network.target
 
 [Service]
@@ -91,7 +91,7 @@ User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
 Environment=PATH=$PYTHON_VENV/bin
-ExecStart=$PYTHON_VENV/bin/gunicorn --config client_config_gunicorn.py src.client:app
+ExecStart=$PYTHON_VENV/bin/python3 $INSTALL_DIR/src/agent.py
 Restart=always
 RestartSec=10
 
@@ -109,7 +109,7 @@ echo ""
 echo "=== Installation Complete ==="
 echo "Service installed as: $SERVICE_NAME"
 echo "Installation directory: $INSTALL_DIR"
-echo "Configuration file: $INSTALL_DIR/client_config.yaml"
+echo "Configuration file: $INSTALL_DIR/agent_config.yaml"
 echo ""
 echo "To start the service:"
 echo "  sudo systemctl start $SERVICE_NAME"

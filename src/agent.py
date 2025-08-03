@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sipeed NanoCluster Client Service
+Sipeed NanoCluster Agent Service
 A lightweight Flask service that provides temperature data via HTTP API.
 This service is designed to run on each cluster node.
 """
@@ -8,16 +8,17 @@ This service is designed to run on each cluster node.
 from flask import Flask, jsonify
 import os
 import logging
+from waitress import serve
 
-from src.client_config import load_config, DEFAULT_THERMAL_PATH, DEFAULT_HOST, DEFAULT_PORT
-from src.client_temperature_reader import ClientTemperatureReader
+from agent_config import load_config, DEFAULT_THERMAL_PATH, DEFAULT_HOST, DEFAULT_PORT
+from agent_temperature_reader import AgentTemperatureReader
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load configuration
-config = load_config("../client_config.yaml")
+config = load_config("../agent_config.yaml")
 
 # Configure logging from config
 log_level = config.get('logging', {}).get('level', 'INFO')
@@ -27,7 +28,7 @@ app = Flask(__name__)
 
 # Initialize temperature reader with config
 thermal_path = config.get('temperature', {}).get('thermal_path', DEFAULT_THERMAL_PATH)
-temp_reader = ClientTemperatureReader(logger, thermal_path)
+temp_reader = AgentTemperatureReader(logger, thermal_path)
 
 
 @app.route('/api/temperature', methods=['GET'])
@@ -85,7 +86,7 @@ def index():
             .status {{ padding: 20px; border-radius: 5px; margin: 20px 0; }}
             .success {{ background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }}
             .error {{ background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }}
-            .info {{ background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }}
+            .info {{ background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; padding: 0 20px; }}
         </style>
     </head>
     <body>
@@ -136,11 +137,12 @@ if __name__ == '__main__':
     port = server_config.get('port', DEFAULT_PORT)
     debug = server_config.get('debug', False)
 
-    logger.info(f"Starting Temperature Client Service on {host}:{port}")
+    logger.info(f"Starting Temperature Agent Service on {host}:{port}")
     logger.info(f"Thermal zone path: {temp_reader.thermal_path}")
 
     try:
-        app.run(host=host, port=port, debug=debug)
+        #app.run(host=host, port=port, debug=debug)
+        serve(app, host=host, port=port)
     except KeyboardInterrupt:
         logger.info("Service stopped by user")
     except Exception as e:

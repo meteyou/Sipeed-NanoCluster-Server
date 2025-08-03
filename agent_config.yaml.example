@@ -1,4 +1,4 @@
-# Sipeed NanoCluster Client Service Configuration
+# Sipeed NanoCluster Agent Service Configuration
 
 server:
   host: "0.0.0.0"
@@ -13,4 +13,3 @@ temperature:
 
 logging:
   level: "INFO"  # DEBUG, INFO, WARNING, ERROR
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
