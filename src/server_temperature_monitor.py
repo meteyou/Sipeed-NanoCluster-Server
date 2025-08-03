@@ -3,7 +3,7 @@ import requests
 import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from src.server_config_manager import ConfigManager
+from server_config_manager import ConfigManager
 import pigpio
 
 logger = logging.getLogger(__name__)

@@ -128,7 +128,7 @@ User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
 Environment=PATH=$PYTHON_VENV/bin
-ExecStart=$PYTHON_VENV/bin/gunicorn --config server_gunicorn_config.py src.server:app
+ExecStart=$PYTHON_VENV/bin/python3 $INSTALL_DIR/src/server.py
 Restart=always
 RestartSec=10
 
