@@ -79,7 +79,7 @@ def index():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Sipeed NanoCluster Client Service</title>
+        <title>Sipeed NanoCluster Agent Service</title>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 40px; }}
             .container {{ max-width: 600px; margin: 0 auto; }}
@@ -91,7 +91,7 @@ def index():
     </head>
     <body>
         <div class="container">
-            <h1>Sipeed NanoCluster Client Service</h1>
+            <h1>Sipeed NanoCluster Agent Service</h1>
             <div class="info">
                 <h3>Service Information</h3>
                 <p><strong>Thermal Path:</strong> {temp_reader.thermal_path}</p>
