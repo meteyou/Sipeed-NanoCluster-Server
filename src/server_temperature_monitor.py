@@ -144,6 +144,8 @@ class TemperatureMonitor:
         max_temp = fan_config.get('max_temp', 70)
         min_speed = fan_config.get('min_speed', 30)
         max_speed = fan_config.get('max_speed', 100)
+        pwm_frequency = fan_config.get('pwm_frequency', 50000)
+        pwm_reverse = fan_config.get('pwm_reverse', False)
 
         current_max_temp = float("-inf")
         hottest_node = None
@@ -171,8 +173,12 @@ class TemperatureMonitor:
         # Here you would set the actual fan speed using GPIO or other methods
         logger.info(f"Setting fan speed to {self.fan_speed}% based on temperature {current_max_temp}°C ({hottest_node})")
         if not self.debug:
-            duty_cycle = int(self.fan_speed * 10000)  # 0-1000000
-            self.pi.hardware_PWM(self.gpio_pin, 50, duty_cycle)
+            speed = self.fan_speed
+            if pwm_reverse:
+                speed = 100 - speed
+            # duty_cycle needs to be in the range of 0-1000000 for pigpio
+            duty_cycle = int(speed * 10000)
+            self.pi.hardware_PWM(self.gpio_pin, pwm_frequency, duty_cycle)
 
     def get_latest_temperatures(self) -> Dict[str, Any]:
         """Returns the latest temperature data of all nodes"""
