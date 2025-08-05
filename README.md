@@ -7,6 +7,11 @@ control.
 
 ![Screenshot of the web interface](screenshot.png)
 
+![Sipeed NanoCluster Case - Noctua Edition](Sipeed-NanoCluster-Noctua-Case.jpg)
+I designed a custom case for the Sipeed NanoCluster with Noctua fans to
+ensure optimal cooling and quiet operation. The case is available on
+[Printables](https://www.printables.com/model/1376174-sipeed-nanocluster-case-noctua-edition).
+
 ## 🚀 Features
 
 - **Central Web Dashboard** - Clear display of all node temperatures and fan
