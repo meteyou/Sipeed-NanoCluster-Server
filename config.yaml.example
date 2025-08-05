@@ -32,5 +32,5 @@ fan:
   max_temp: 70
   min_speed: 30
   max_speed: 100
-  pwm_frequency: 50000
+  pwm_frequency: 50
   pwm_reverse: false

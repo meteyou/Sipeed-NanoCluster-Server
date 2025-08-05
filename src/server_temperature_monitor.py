@@ -144,7 +144,7 @@ class TemperatureMonitor:
         max_temp = fan_config.get('max_temp', 70)
         min_speed = fan_config.get('min_speed', 30)
         max_speed = fan_config.get('max_speed', 100)
-        pwm_frequency = fan_config.get('pwm_frequency', 50000)
+        pwm_frequency = fan_config.get('pwm_frequency', 50)
         pwm_reverse = fan_config.get('pwm_reverse', False)
 
         current_max_temp = float("-inf")
