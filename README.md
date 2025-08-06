@@ -146,7 +146,7 @@ the server to query.
 ```bash
 sudo apt update && sudo apt install -y git
 cd /opt
-git clone https://github.com/meteyou/sipeed-nanocluster-server.git
+sudo git clone https://github.com/meteyou/sipeed-nanocluster-server.git
 cd sipeed-nanocluster-server
 ```
 
