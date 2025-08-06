@@ -49,11 +49,11 @@
             fetch('/api/nodes')
                 .then(response => response.json())
                 .then(nodes => {
-                    nodesList = nodes; // Speichere Nodes für spätere Verwendung
+                    nodesList = nodes;
                     const container = document.getElementById('nodes-container');
                     container.innerHTML = '';
 
-                    nodes.forEach(node => {
+                    nodes.sort((a,b) => a.slot - b.slot).forEach(node => {
                         const nodeElement = document.createElement('tr');
                         nodeElement.className = 'node-row';
                         nodeElement.dataset.node = node.name;
