@@ -51,7 +51,8 @@ sudo ./install_server.sh
 ```
 
 The installation script automatically performs the following steps:
-- Installation of `pigpio` and `python3-pigpio` system packages
+- Installation of `pigpio` and `python3-pigpio` via apt when available
+- On Debian Trixie: build and install `pigpiod` from upstream source as fallback
 - Enable and start the `pigpiod` daemon
 - Create service user `sipeed-nanocluster`
 - Install all Python dependencies
