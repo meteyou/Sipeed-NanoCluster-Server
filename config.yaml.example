@@ -9,18 +9,21 @@ temperature_monitoring:
 
 nodes:
   - name: "node-1"
+    description: "Raspberry Pi CM4, 8GB RAM"
     slot: 1
     ip: "192.168.0.101"
     port: 5001
     enabled: true
 
   - name: "node-2"
+    description: "Raspberry Pi CM4, 4GB RAM"
     slot: 2
     ip: "192.168.0.102"
     port: 5001
     enabled: true
 
   - name: "node-3"
+    description: "LicheeRV Nano"
     slot: 3
     ip: "192.168.0.103"
     port: 5001

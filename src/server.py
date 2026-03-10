@@ -38,6 +38,62 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/api/dashboard')
+def api_dashboard():
+    """
+    Single comprehensive endpoint that returns all dashboard data:
+    node config + system metrics + fan status.
+    """
+    nodes_config = config_manager.get_nodes()
+    system_data = temperature_monitor.get_system_data()
+    latest_temps = temperature_monitor.get_latest_temperatures()
+    fan_config = config_manager.get_fan_config()
+    fan_speed = temperature_monitor.get_fan_speed()
+
+    nodes = []
+    for node in sorted(nodes_config, key=lambda n: n.get('slot', 0)):
+        name = node['name']
+        sys_info = system_data.get(name)
+        temp_info = latest_temps.get(name)
+
+        entry = {
+            'name': name,
+            'slot': node.get('slot', 0),
+            'ip': node.get('ip', ''),
+            'port': node.get('port', 5001),
+            'enabled': node.get('enabled', False),
+            'description': node.get('description', ''),
+            'online': sys_info is not None or temp_info is not None,
+            'system': sys_info,  # may be None if agent doesn't support /api/system
+        }
+
+        # If we have system data, the temperature and timestamp are included.
+        # Otherwise fall back to the legacy temperature-only data.
+        if sys_info is None and temp_info:
+            entry['temperature'] = temp_info.get('temperature')
+            entry['last_update'] = temp_info.get('timestamp')
+        elif sys_info:
+            entry['temperature'] = sys_info.get('temperature')
+            entry['last_update'] = sys_info.get('timestamp')
+        else:
+            entry['temperature'] = None
+            entry['last_update'] = None
+
+        nodes.append(entry)
+
+    return jsonify({
+        'success': True,
+        'nodes': nodes,
+        'fan': {
+            'config': fan_config,
+            'speed': fan_speed,
+        },
+    })
+
+
+# ── Legacy API endpoints (kept for backward compatibility) ─────────────
+
+
 @app.route('/api/nodes')
 def api_nodes():
     """API endpoint to get all nodes"""
@@ -47,7 +103,7 @@ def api_nodes():
 
 @app.route('/api/nodes/temperatures')
 def api_nodes_temperatures():
-    """API endpoint to get all nodes"""
+    """API endpoint to get all node temperatures"""
     latest_temps = temperature_monitor.get_latest_temperatures()
     return jsonify({
         'success': True,

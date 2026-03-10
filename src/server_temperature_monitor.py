@@ -13,6 +13,7 @@ class TemperatureMonitor:
     def __init__(self, config_manager: ConfigManager):
         self.config_manager = config_manager
         self.temperature_data = {}
+        self.system_data = {}  # node_name -> latest full system data
         self.fan_speed = 0
         self.is_running = False
         self.monitor_thread = None
@@ -84,7 +85,7 @@ class TemperatureMonitor:
             self._set_fan_speed_based_on_temperature()
 
     def _poll_all_nodes(self):
-        """Polls all active nodes for their temperature"""
+        """Polls all active nodes for their system data and temperature"""
         enabled_nodes = self.config_manager.get_enabled_nodes()
         config = self.config_manager.get_temperature_monitoring_config()
         endpoint = config.get('endpoint', '/api/temperature')
@@ -92,14 +93,55 @@ class TemperatureMonitor:
 
         for node in enabled_nodes:
             try:
+                # Try the comprehensive /api/system endpoint first
+                sys_data = self._poll_node_system(node, timeout)
+                if sys_data:
+                    sys_data['timestamp'] = datetime.now().isoformat()
+                    self.system_data[node['name']] = sys_data
+
+                    # Also store temperature for fan control
+                    temperature = sys_data.get('temperature')
+                    if temperature is not None:
+                        self._store_temperature_data(node, temperature)
+                    continue
+
+                # Fallback to the legacy /api/temperature endpoint
                 temperature = self._poll_node_temperature(node, endpoint, timeout)
                 if temperature is not None:
                     self._store_temperature_data(node, temperature)
             except Exception as e:
-                logger.error(f"Failed to poll temperature from node {node['name']}: {e}")
+                logger.error(f"Failed to poll node {node['name']}: {e}")
+
+    def _poll_node_system(self, node: Dict[str, Any], timeout: int) -> Optional[Dict[str, Any]]:
+        """Poll a node for comprehensive system data via /api/system"""
+        url = f"http://{node['ip']}:{node['port']}/api/system"
+
+        try:
+            logger.debug(f"Polling system data from {node['name']} at {url}")
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()
+
+            data = response.json()
+            if data.get('success'):
+                logger.debug(f"Got system data from {node['name']}")
+                return data
+            return None
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"Timeout polling system data from {node['name']}")
+            return None
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"Connection error polling system data from {node['name']}")
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.debug(f"System endpoint not available on {node['name']}: {e}")
+            return None
+        except (ValueError, KeyError) as e:
+            logger.error(f"Invalid system data from {node['name']}: {e}")
+            return None
 
     def _poll_node_temperature(self, node: Dict[str, Any], endpoint: str, timeout: int) -> Optional[float]:
-        """Polls a single node for its temperature"""
+        """Polls a single node for its temperature (legacy endpoint)"""
         url = f"http://{node['ip']}:{node['port']}{endpoint}"
 
         try:
@@ -213,6 +255,10 @@ class TemperatureMonitor:
     def get_all_temperature_data(self) -> Dict[str, List[Dict[str, Any]]]:
         """Returns all stored temperature data"""
         return self.temperature_data.copy()
+
+    def get_system_data(self) -> Dict[str, Any]:
+        """Returns the latest system data for all nodes"""
+        return self.system_data.copy()
 
     def get_fan_speed(self) -> int:
         """Returns the current fan speed"""
