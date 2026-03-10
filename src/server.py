@@ -1,3 +1,11 @@
+import os
+
+# Change to a writable directory before importing lgpio (via TemperatureMonitor),
+# as lgpio creates notification pipe files in the current working directory.
+# When running as a systemd service, RuntimeDirectory provides /run/<service-name>/
+runtime_dir = os.environ.get('RUNTIME_DIRECTORY', '/tmp')
+os.chdir(runtime_dir)
+
 from flask import Flask, render_template, jsonify
 from server_config_manager import ConfigManager
 from server_temperature_monitor import TemperatureMonitor

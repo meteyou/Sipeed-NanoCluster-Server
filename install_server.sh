@@ -80,16 +80,13 @@ if getent group gpio >/dev/null 2>&1; then
     echo "Added $SERVICE_USER to gpio group"
 fi
 
-# Set ownership of installation directory
-echo "Setting up directory permissions..."
-chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
-
 # Create or update Python virtual environment
 if [ -d "$PYTHON_VENV" ]; then
     echo "Virtual environment already exists, updating..."
 else
     echo "Creating Python virtual environment..."
-    sudo -u "$SERVICE_USER" python3 -m venv --system-site-packages "$PYTHON_VENV"
+    python3 -m venv --system-site-packages "$PYTHON_VENV"
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$PYTHON_VENV"
 fi
 
 # Install/update dependencies
@@ -100,13 +97,10 @@ sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install -r requirements.txt
 # Copy example configuration file if it doesn't exist
 if [ ! -f "$INSTALL_DIR/config.yaml" ]; then
     echo "Creating default configuration file..."
-    sudo -u "$SERVICE_USER" cp "$INSTALL_DIR/config.yaml.example" "$INSTALL_DIR/config.yaml"
+    cp "$INSTALL_DIR/config.yaml.example" "$INSTALL_DIR/config.yaml"
+    chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/config.yaml"
     echo "Please edit $INSTALL_DIR/config.yaml to configure the server."
 fi
-
-# Set ownership of configuration files
-echo "Setting ownership of configuration files..."
-chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/config.yaml"
 
 # Create systemd service file
 echo "Creating systemd service file..."
@@ -120,6 +114,7 @@ Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
+RuntimeDirectory=$SERVICE_NAME
 Environment=PATH=$PYTHON_VENV/bin
 ExecStart=$PYTHON_VENV/bin/python3 $INSTALL_DIR/src/server.py
 Restart=always
