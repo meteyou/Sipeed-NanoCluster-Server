@@ -229,21 +229,31 @@ function renderNodeCard(node, index) {
         if (nets.length) {
             let nh = '';
             nets.forEach(n => {
-                nh += `<div class="net-item">
-                    <div class="net-header">
-                        <span class="net-name">${n.name}</span>
-                        ${n.ip ? `<span class="net-ip">${n.ip}</span>` : ''}
-                    </div>
-                    <div class="net-rates">
-                        <span class="net-down">▼ ${formatRate(n.bytes_recv_per_sec)}</span>
-                        <span class="net-up">▲ ${formatRate(n.bytes_sent_per_sec)}</span>
-                    </div>
-                    <div class="net-totals">
-                        <span>▼ ${formatBytes(n.bytes_recv_total)}</span>
-                        <span>▲ ${formatBytes(n.bytes_sent_total)}</span>
-                        <span class="net-since-boot">since boot</span>
-                    </div>
-                </div>`;
+                const connected = n.connected !== false;
+                if (connected) {
+                    nh += `<div class="net-item">
+                        <div class="net-header">
+                            <span class="net-name">${n.name}</span>
+                            ${n.ip ? `<span class="net-ip">${n.ip}</span>` : ''}
+                        </div>
+                        <div class="net-rates">
+                            <span class="net-down">▼ ${formatRate(n.bytes_recv_per_sec)}</span>
+                            <span class="net-up">▲ ${formatRate(n.bytes_sent_per_sec)}</span>
+                        </div>
+                        <div class="net-totals">
+                            <span>▼ ${formatBytes(n.bytes_recv_total)}</span>
+                            <span>▲ ${formatBytes(n.bytes_sent_total)}</span>
+                            <span class="net-since-boot">since boot</span>
+                        </div>
+                    </div>`;
+                } else {
+                    nh += `<div class="net-item net-disconnected">
+                        <div class="net-header">
+                            <span class="net-name">${n.name}</span>
+                            <span class="net-disconnected-badge">disconnected</span>
+                        </div>
+                    </div>`;
+                }
             });
             body += `<div class="metric-section">
                 <div class="metric-header"><span class="metric-label">Network</span></div>

@@ -331,6 +331,7 @@ class AgentSystemReader:
         interfaces = []
         addrs = psutil.net_if_addrs()
         net_io = psutil.net_io_counters(pernic=True)
+        net_stats = psutil.net_if_stats()
 
         for nic_name, nic_addrs in sorted(addrs.items()):
             # Skip loopback and docker/veth interfaces
@@ -348,12 +349,18 @@ class AgentSystemReader:
                     ipv4 = addr.address
                     break
 
+            # Determine connection status: interface must be up AND have an IPv4 address
+            stats = net_stats.get(nic_name)
+            is_up = stats.isup if stats else False
+            connected = is_up and bool(ipv4)
+
             counters = net_io.get(nic_name)
             rates = net_io_rates.get(nic_name, {})
 
             interfaces.append({
                 'name': nic_name,
                 'ip': ipv4,
+                'connected': connected,
                 'bytes_sent_total': counters.bytes_sent if counters else 0,
                 'bytes_recv_total': counters.bytes_recv if counters else 0,
                 'bytes_sent_per_sec': round(rates.get('bytes_sent_per_sec', 0)),
