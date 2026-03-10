@@ -357,13 +357,13 @@ function renderFanCard(fan) {
                 <div class="fan-setting-group">
                     <label class="fan-setting-label">Temp Range (°C)</label>
                     <div class="fan-setting-row">
-                        <div class="fan-setting-field">
-                            <span class="fan-setting-sublabel">Min</span>
+                        <div class="fan-input-with-prefix">
+                            <span class="fan-input-prefix">Min</span>
                             <input type="number" id="cfg-min-temp" value="${cfg.min_temp ?? 40}" min="0" max="120">
                         </div>
                         <span class="fan-setting-sep">–</span>
-                        <div class="fan-setting-field">
-                            <span class="fan-setting-sublabel">Max</span>
+                        <div class="fan-input-with-prefix">
+                            <span class="fan-input-prefix">Max</span>
                             <input type="number" id="cfg-max-temp" value="${cfg.max_temp ?? 70}" min="0" max="120">
                         </div>
                     </div>
@@ -371,13 +371,13 @@ function renderFanCard(fan) {
                 <div class="fan-setting-group">
                     <label class="fan-setting-label">Speed Range (%)</label>
                     <div class="fan-setting-row">
-                        <div class="fan-setting-field">
-                            <span class="fan-setting-sublabel">Min</span>
+                        <div class="fan-input-with-prefix">
+                            <span class="fan-input-prefix">Min</span>
                             <input type="number" id="cfg-min-speed" value="${cfg.min_speed ?? 30}" min="0" max="100">
                         </div>
                         <span class="fan-setting-sep">–</span>
-                        <div class="fan-setting-field">
-                            <span class="fan-setting-sublabel">Max</span>
+                        <div class="fan-input-with-prefix">
+                            <span class="fan-input-prefix">Max</span>
                             <input type="number" id="cfg-max-speed" value="${cfg.max_speed ?? 100}" min="0" max="100">
                         </div>
                     </div>
@@ -385,7 +385,7 @@ function renderFanCard(fan) {
                 <div class="fan-setting-group">
                     <label class="fan-setting-label">PWM Frequency (Hz)</label>
                     <div class="fan-setting-row">
-                        <div class="fan-setting-field fan-setting-field-wide">
+                        <div class="fan-input-with-prefix fan-setting-field-wide">
                             <input type="number" id="cfg-pwm-freq" value="${cfg.pwm_frequency ?? 50}" min="1" max="100000">
                         </div>
                     </div>
