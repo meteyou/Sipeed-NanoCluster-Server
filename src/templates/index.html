@@ -4,9 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sipeed NanoCluster</title>
+
+    <!-- Fonts: JetBrains Mono (data) + DM Sans (body) — graceful fallback if offline -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+
+<!-- Subtle noise texture overlay -->
+<div class="noise-overlay" aria-hidden="true"></div>
 
 <!-- Header -->
 <header class="header">
@@ -18,113 +27,114 @@
 
 <!-- Main Content -->
 <main class="main">
-    <div class="nodes-grid" id="nodes-grid">
-        <!-- Node cards rendered by JS -->
-    </div>
-
-    <!-- Fan Card -->
-    <div class="fan-card" id="fan-card">
-        <!-- Fan info rendered by JS -->
-    </div>
+    <div class="nodes-grid" id="nodes-grid"></div>
+    <div class="fan-card" id="fan-card"></div>
 </main>
 
 <script type="text/javascript">
-// ── Helpers ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// Sipeed NanoCluster — Dashboard Controller
+// ══════════════════════════════════════════════════════════════════════
+
+let isFirstRender = true;
+
+// ── Formatters ────────────────────────────────────────────────────────
 
 function formatBytes(bytes, decimals = 1) {
     if (bytes == null || bytes === 0) return '0 B';
     const k = 1024;
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
-    const idx = Math.min(i, units.length - 1);
-    return parseFloat((bytes / Math.pow(k, idx)).toFixed(decimals)) + ' ' + units[idx];
+    const i = Math.min(Math.floor(Math.log(Math.abs(bytes)) / Math.log(k)), units.length - 1);
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + units[i];
 }
 
-function formatBytesPerSec(bytes) {
+function formatRate(bytes) {
     return formatBytes(bytes) + '/s';
 }
 
-function formatUptime(seconds) {
-    if (!seconds || seconds <= 0) return '—';
-    const d = Math.floor(seconds / 86400);
-    const h = Math.floor((seconds % 86400) / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const parts = [];
-    if (d > 0) parts.push(d + 'd');
-    if (h > 0) parts.push(h + 'h');
-    parts.push(m + 'm');
-    return parts.join(' ');
+function formatUptime(sec) {
+    if (!sec || sec <= 0) return '—';
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const p = [];
+    if (d > 0) p.push(d + 'd');
+    if (h > 0) p.push(h + 'h');
+    p.push(m + 'm');
+    return p.join(' ');
 }
 
-function formatFrequency(mhz) {
+function formatFreq(mhz) {
     if (!mhz) return '—';
-    if (mhz >= 1000) return (mhz / 1000).toFixed(2) + ' GHz';
-    return Math.round(mhz) + ' MHz';
+    return mhz >= 1000 ? (mhz / 1000).toFixed(2) + ' GHz' : Math.round(mhz) + ' MHz';
 }
 
-function formatTime(isoString) {
-    if (!isoString) return '—';
-    const d = new Date(isoString);
-    return d.toLocaleString();
+function formatTime(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString();
 }
 
-function percentColor(pct) {
+// ── Color helpers ─────────────────────────────────────────────────────
+
+function pctColor(pct) {
     if (pct < 60) return 'var(--color-success)';
     if (pct < 80) return 'var(--color-warning)';
     return 'var(--color-danger)';
 }
 
-function tempColor(temp) {
-    if (temp == null) return 'var(--color-muted)';
-    if (temp < 40) return 'var(--color-success)';
-    if (temp < 55) return 'var(--color-info)';
-    if (temp < 65) return 'var(--color-warning)';
+function tempColor(t) {
+    if (t == null) return 'var(--color-dim)';
+    if (t < 40) return 'var(--color-success)';
+    if (t < 55) return 'var(--color-accent)';
+    if (t < 65) return 'var(--color-warning)';
     return 'var(--color-danger)';
 }
 
-function diskTypeBadgeClass(type) {
+function diskBadge(type) {
     if (!type) return 'badge-other';
     const t = type.toLowerCase();
     if (t === 'nvme') return 'badge-nvme';
     if (t === 'emmc') return 'badge-emmc';
-    if (t === 'sd') return 'badge-sd';
-    if (t.includes('usb')) return 'badge-usb';
+    if (t === 'sd')   return 'badge-sd';
+    if (t.includes('usb'))  return 'badge-usb';
     if (t.includes('sata')) return 'badge-sata';
     return 'badge-other';
 }
 
-function progressBar(percent, color) {
-    const clampedPct = Math.max(0, Math.min(100, percent || 0));
-    const barColor = color || percentColor(clampedPct);
+// ── UI Components ─────────────────────────────────────────────────────
+
+function bar(pct, color) {
+    const p = Math.max(0, Math.min(100, pct || 0));
     return `<div class="progress-bar">
-        <div class="progress-fill" style="width:${clampedPct}%;background:${barColor}"></div>
+        <div class="progress-fill" style="width:${p}%;background:${color || pctColor(p)}"></div>
     </div>`;
 }
 
-// ── Card Rendering ────────────────────────────────────────────────────
+// ── Node Card Builder ─────────────────────────────────────────────────
 
-function renderNodeCard(node) {
+function renderNodeCard(node, index) {
     const sys = node.system;
-    const isOnline = node.online && node.enabled;
-    const isDisabled = !node.enabled;
+    const online = node.online && node.enabled;
+    const disabled = !node.enabled;
 
-    let statusClass = 'status-offline';
-    let statusText = 'Offline';
-    if (isDisabled) { statusClass = 'status-disabled'; statusText = 'Disabled'; }
-    else if (isOnline && sys) { statusClass = 'status-online'; statusText = 'Online'; }
-    else if (isOnline) { statusClass = 'status-online'; statusText = 'Online'; }
-    else { statusClass = 'status-offline'; statusText = 'Offline'; }
+    let sc, st;
+    if (disabled)       { sc = 'status-disabled'; st = 'Disabled'; }
+    else if (online)    { sc = 'status-online';   st = 'Online'; }
+    else                { sc = 'status-offline';  st = 'Offline'; }
 
-    // Use agent-reported description, fall back to server config description
-    const description = (sys && sys.description) || node.description || '';
+    const desc = (sys?.description) || node.description || '';
+
+    // Animation only on first render
+    const anim = isFirstRender ? ` animate-in" style="animation-delay:${index * 0.06}s` : '';
 
     let body = '';
 
     // ── Temperature ───────────────────────────────────────────────
     const temp = node.temperature;
+    const tc = tempColor(temp);
     body += `<div class="metric-section temp-section">
-        <div class="temp-display" style="color:${tempColor(temp)}">
-            ${temp != null ? temp.toFixed(1) + '°C' : '—'}
+        <div class="temp-display" style="color:${tc}">
+            ${temp != null ? temp.toFixed(1) + '<span class="temp-unit">°C</span>' : '—'}
         </div>
     </div>`;
 
@@ -137,15 +147,13 @@ function renderNodeCard(node) {
         const load = cpu.load_average || [];
 
         let coresHtml = '';
-        if (cores.length > 0) {
+        if (cores.length) {
             coresHtml = '<div class="cpu-cores">';
-            cores.forEach((pct, i) => {
+            cores.forEach((p, i) => {
                 coresHtml += `<div class="core-bar-wrapper">
                     <span class="core-label">C${i}</span>
-                    <div class="core-bar">
-                        <div class="core-bar-fill" style="width:${pct}%;background:${percentColor(pct)}"></div>
-                    </div>
-                    <span class="core-pct">${pct.toFixed(0)}%</span>
+                    <div class="core-bar"><div class="core-bar-fill" style="width:${p}%;background:${pctColor(p)}"></div></div>
+                    <span class="core-pct">${p.toFixed(0)}%</span>
                 </div>`;
             });
             coresHtml += '</div>';
@@ -156,29 +164,27 @@ function renderNodeCard(node) {
                 <span class="metric-label">CPU</span>
                 <span class="metric-value">${cpuPct.toFixed(1)}%</span>
             </div>
-            ${progressBar(cpuPct)}
+            ${bar(cpuPct)}
             ${coresHtml}
             <div class="metric-details">
-                ${cpu.model && cpu.model !== 'Unknown' ? `<span title="CPU Model">${cpu.model}</span>` : ''}
-                <span title="CPU Frequency">${formatFrequency(freq.current)}${freq.max ? ' / ' + formatFrequency(freq.max) : ''}</span>
-                ${load.length ? `<span title="Load Average (1/5/15 min)">Load: ${load.join(' / ')}</span>` : ''}
+                ${cpu.model && cpu.model !== 'Unknown' ? `<span>${cpu.model}</span>` : ''}
+                <span>${formatFreq(freq.current)}${freq.max ? ' / ' + formatFreq(freq.max) : ''}</span>
+                ${load.length ? `<span>Load ${load.join(' · ')}</span>` : ''}
             </div>
         </div>`;
 
         // ── Memory ────────────────────────────────────────────────
         const mem = sys.memory || {};
         const memPct = mem.percent ?? 0;
-        const memUsed = mem.used ?? 0;
-        const memTotal = mem.total ?? 0;
 
         let swapHtml = '';
         if (mem.swap_total > 0) {
             swapHtml = `<div class="sub-metric">
                 <div class="sub-metric-header">
                     <span class="sub-label">Swap</span>
-                    <span class="sub-value">${formatBytes(mem.swap_used)} / ${formatBytes(mem.swap_total)} (${(mem.swap_percent ?? 0).toFixed(0)}%)</span>
+                    <span class="sub-value">${formatBytes(mem.swap_used)} / ${formatBytes(mem.swap_total)} · ${(mem.swap_percent ?? 0).toFixed(0)}%</span>
                 </div>
-                ${progressBar(mem.swap_percent, percentColor(mem.swap_percent ?? 0))}
+                ${bar(mem.swap_percent)}
             </div>`;
         }
 
@@ -188,120 +194,110 @@ function renderNodeCard(node) {
                 <span class="metric-value">${memPct.toFixed(0)}%</span>
             </div>
             <div class="sub-metric-header">
-                <span class="sub-value">${formatBytes(memUsed)} / ${formatBytes(memTotal)}</span>
+                <span class="sub-value">${formatBytes(mem.used ?? 0)} / ${formatBytes(mem.total ?? 0)}</span>
             </div>
-            ${progressBar(memPct)}
+            ${bar(memPct)}
             ${swapHtml}
         </div>`;
 
         // ── Storage ───────────────────────────────────────────────
         const disks = sys.disks || [];
-        if (disks.length > 0) {
-            let disksHtml = '';
-            disks.forEach(disk => {
-                disksHtml += `<div class="disk-item">
+        if (disks.length) {
+            let dh = '';
+            disks.forEach(d => {
+                dh += `<div class="disk-item">
                     <div class="disk-header">
-                        <span class="disk-type-badge ${diskTypeBadgeClass(disk.type)}">${disk.type || '?'}</span>
-                        <span class="disk-mount" title="${disk.device}">${disk.mountpoint}</span>
-                        <span class="disk-usage">${formatBytes(disk.used)} / ${formatBytes(disk.total)} (${(disk.percent ?? 0).toFixed(0)}%)</span>
+                        <span class="disk-type-badge ${diskBadge(d.type)}">${d.type || '?'}</span>
+                        <span class="disk-mount" title="${d.device}">${d.mountpoint}</span>
+                        <span class="disk-usage">${formatBytes(d.used)} / ${formatBytes(d.total)} · ${(d.percent ?? 0).toFixed(0)}%</span>
                     </div>
-                    ${progressBar(disk.percent)}
+                    ${bar(d.percent)}
                     <div class="disk-io">
-                        <span title="Read speed">R: ${formatBytesPerSec(disk.io_read_bytes_per_sec)}</span>
-                        <span title="Write speed">W: ${formatBytesPerSec(disk.io_write_bytes_per_sec)}</span>
+                        <span>R ${formatRate(d.io_read_bytes_per_sec)}</span>
+                        <span>W ${formatRate(d.io_write_bytes_per_sec)}</span>
                     </div>
                 </div>`;
             });
-
             body += `<div class="metric-section">
-                <div class="metric-header">
-                    <span class="metric-label">Storage</span>
-                </div>
-                ${disksHtml}
+                <div class="metric-header"><span class="metric-label">Storage</span></div>
+                ${dh}
             </div>`;
         }
 
         // ── Network ───────────────────────────────────────────────
-        const networks = sys.network || [];
-        if (networks.length > 0) {
-            let netHtml = '';
-            networks.forEach(nic => {
-                netHtml += `<div class="net-item">
+        const nets = sys.network || [];
+        if (nets.length) {
+            let nh = '';
+            nets.forEach(n => {
+                nh += `<div class="net-item">
                     <div class="net-header">
-                        <span class="net-name">${nic.name}</span>
-                        ${nic.ip ? `<span class="net-ip">${nic.ip}</span>` : ''}
+                        <span class="net-name">${n.name}</span>
+                        ${n.ip ? `<span class="net-ip">${n.ip}</span>` : ''}
                     </div>
                     <div class="net-rates">
-                        <span class="net-down" title="Download speed">▼ ${formatBytesPerSec(nic.bytes_recv_per_sec)}</span>
-                        <span class="net-up" title="Upload speed">▲ ${formatBytesPerSec(nic.bytes_sent_per_sec)}</span>
+                        <span class="net-down">▼ ${formatRate(n.bytes_recv_per_sec)}</span>
+                        <span class="net-up">▲ ${formatRate(n.bytes_sent_per_sec)}</span>
                     </div>
                     <div class="net-totals">
-                        <span title="Total received since boot">▼ ${formatBytes(nic.bytes_recv_total)}</span>
-                        <span title="Total sent since boot">▲ ${formatBytes(nic.bytes_sent_total)}</span>
+                        <span>▼ ${formatBytes(n.bytes_recv_total)}</span>
+                        <span>▲ ${formatBytes(n.bytes_sent_total)}</span>
                         <span class="net-since-boot">since boot</span>
                     </div>
                 </div>`;
             });
-
             body += `<div class="metric-section">
-                <div class="metric-header">
-                    <span class="metric-label">Network</span>
-                </div>
-                ${netHtml}
+                <div class="metric-header"><span class="metric-label">Network</span></div>
+                ${nh}
             </div>`;
         }
     }
 
     // ── Footer ────────────────────────────────────────────────────
-    let footerParts = [];
+    let fp = [];
     if (sys) {
-        if (sys.uptime) footerParts.push(`<span title="Uptime">⏱ ${formatUptime(sys.uptime)}</span>`);
+        if (sys.uptime)    fp.push(`<span>⏱ ${formatUptime(sys.uptime)}</span>`);
         if (sys.os) {
-            const osLabel = sys.os.name !== 'Unknown' ? sys.os.name : '';
-            const kernelLabel = sys.os.kernel || '';
-            if (osLabel || kernelLabel) {
-                footerParts.push(`<span title="OS / Kernel">${osLabel}${kernelLabel ? ' • ' + kernelLabel : ''}</span>`);
-            }
+            const on = sys.os.name !== 'Unknown' ? sys.os.name : '';
+            const ok = sys.os.kernel || '';
+            if (on || ok) fp.push(`<span>${on}${ok ? ' · ' + ok : ''}</span>`);
         }
-        if (sys.processes) footerParts.push(`<span title="Running processes">${sys.processes} processes</span>`);
+        if (sys.processes) fp.push(`<span>${sys.processes} procs</span>`);
     }
-    if (node.last_update) footerParts.push(`<span class="last-update" title="Last update">${formatTime(node.last_update)}</span>`);
+    if (node.last_update) fp.push(`<span class="last-update">${formatTime(node.last_update)}</span>`);
 
-    return `<div class="node-card ${statusClass}">
+    return `<div class="node-card ${sc}${anim}">
         <div class="node-header">
             <div class="node-identity">
                 <span class="slot-badge">Slot ${node.slot}</span>
                 <div class="node-names">
                     <span class="node-name">${node.name}</span>
-                    ${description ? `<span class="node-description">${description}</span>` : ''}
+                    ${desc ? `<span class="node-description">${desc}</span>` : ''}
                 </div>
             </div>
             <div class="node-meta">
                 <span class="node-ip">${node.ip}:${node.port}</span>
-                <span class="status-badge ${statusClass}">${statusText}</span>
+                <span class="status-badge ${sc}"><span class="status-dot"></span>${st}</span>
             </div>
         </div>
-        <div class="node-body">
-            ${body}
-        </div>
-        ${footerParts.length ? `<div class="node-footer">${footerParts.join('')}</div>` : ''}
+        <div class="node-body">${body}</div>
+        ${fp.length ? `<div class="node-footer">${fp.join('')}</div>` : ''}
     </div>`;
 }
+
+// ── Fan Card ──────────────────────────────────────────────────────────
 
 function renderFanCard(fan) {
     if (!fan) return '';
     const cfg = fan.config || {};
     const speed = fan.speed ?? 0;
-    const speedColor = speed > 80 ? 'var(--color-danger)' : speed > 50 ? 'var(--color-warning)' : 'var(--color-success)';
+    const sc = speed > 80 ? 'var(--color-danger)' : speed > 50 ? 'var(--color-warning)' : 'var(--color-success)';
 
     return `<div class="fan-inner">
         <div class="fan-header">
             <h2>Fan Control</h2>
-            <div class="fan-speed" style="color:${speedColor}">${speed.toFixed(0)}%</div>
+            <div class="fan-speed" style="color:${sc}">${speed.toFixed(0)}%</div>
         </div>
-        <div class="fan-bar-wrapper">
-            ${progressBar(speed, speedColor)}
-        </div>
+        <div class="fan-bar-wrapper">${bar(speed, sc)}</div>
         <div class="fan-details">
             <div class="fan-detail">
                 <span class="fan-detail-label">Temp Range</span>
@@ -312,50 +308,44 @@ function renderFanCard(fan) {
                 <span class="fan-detail-value">${cfg.min_speed ?? '—'}% – ${cfg.max_speed ?? '—'}%</span>
             </div>
             <div class="fan-detail">
-                <span class="fan-detail-label">PWM Frequency</span>
+                <span class="fan-detail-label">PWM</span>
                 <span class="fan-detail-value">${cfg.pwm_frequency ?? '—'} Hz</span>
             </div>
         </div>
     </div>`;
 }
 
-function renderHeaderSummary(data) {
+// ── Header Summary ────────────────────────────────────────────────────
+
+function renderSummary(data) {
     const nodes = data.nodes || [];
     const total = nodes.length;
-    const online = nodes.filter(n => n.online && n.enabled).length;
-    const disabled = nodes.filter(n => !n.enabled).length;
-    const fanSpeed = data.fan?.speed;
+    const on = nodes.filter(n => n.online && n.enabled).length;
+    const off = nodes.filter(n => !n.enabled).length;
+    const fan = data.fan?.speed;
 
-    let parts = [`${online}/${total - disabled} online`];
-    if (disabled > 0) parts.push(`${disabled} disabled`);
-    if (fanSpeed != null) parts.push(`Fan: ${fanSpeed.toFixed(0)}%`);
-
-    return `<span>${parts.join(' · ')}</span>`;
+    let p = [`${on}/${total - off} online`];
+    if (off > 0) p.push(`${off} disabled`);
+    if (fan != null) p.push(`Fan ${fan.toFixed(0)}%`);
+    return `<span>${p.join('  ·  ')}</span>`;
 }
 
-// ── Main Loop ─────────────────────────────────────────────────────────
+// ── Refresh Loop ──────────────────────────────────────────────────────
 
 async function refresh() {
     try {
-        const response = await fetch(`/api/dashboard?t=${Date.now()}`);
-        const data = await response.json();
-        if (!data.success) {
-            console.error('Dashboard API error:', data);
-            return;
-        }
+        const res = await fetch(`/api/dashboard?t=${Date.now()}`);
+        const data = await res.json();
+        if (!data.success) return;
 
-        // Update header summary
-        document.getElementById('header-summary').innerHTML = renderHeaderSummary(data);
-
-        // Update node cards
-        const grid = document.getElementById('nodes-grid');
-        grid.innerHTML = (data.nodes || []).map(renderNodeCard).join('');
-
-        // Update fan card
+        document.getElementById('header-summary').innerHTML = renderSummary(data);
+        document.getElementById('nodes-grid').innerHTML =
+            (data.nodes || []).map((n, i) => renderNodeCard(n, i)).join('');
         document.getElementById('fan-card').innerHTML = renderFanCard(data.fan);
 
-    } catch (error) {
-        console.error('Failed to refresh dashboard:', error);
+        isFirstRender = false;
+    } catch (e) {
+        console.error('Dashboard refresh failed:', e);
     }
 }
 
