@@ -1,5 +1,9 @@
 import os
 
+# Resolve paths relative to the project root before changing the working directory
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_config_path = os.path.join(_project_root, 'config.yaml')
+
 # Change to a writable directory before importing lgpio (via TemperatureMonitor),
 # as lgpio creates notification pipe files in the current working directory.
 # When running as a systemd service, RuntimeDirectory provides /run/<service-name>/
@@ -18,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-config_manager = ConfigManager()
+config_manager = ConfigManager(config_path=_config_path)
 
 # Initialize temperature monitor
 temperature_monitor = TemperatureMonitor(config_manager)

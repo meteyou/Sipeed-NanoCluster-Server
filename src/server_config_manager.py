@@ -46,7 +46,9 @@ class ConfigManager:
             }
         }
 
-        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        config_dir = os.path.dirname(self.config_path)
+        if config_dir:
+            os.makedirs(config_dir, exist_ok=True)
         with open(self.config_path, 'w') as file:
             yaml.dump(default_config, file, default_flow_style=False)
 
