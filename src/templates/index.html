@@ -7,154 +7,363 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>Sipeed NanoCluster</h1>
 
-        <div class="section">
-            <h2>Nodes</h2>
-            <table id="nodes-table">
-                <thead>
-                    <tr>
-                        <th>Slot</th>
-                        <th>Name</th>
-                        <th>IP:Port</th>
-                        <th>Status</th>
-                        <th>Temp.</th>
-                        <th>Last Update</th>
-                    </tr>
-                </thead>
-                <tbody id="nodes-container">
-                    <!-- Nodes werden hier dynamisch geladen -->
-                </tbody>
-            </table>
-        </div>
+<!-- Header -->
+<header class="header">
+    <div class="header-inner">
+        <h1 class="header-title">Sipeed NanoCluster</h1>
+        <div class="header-summary" id="header-summary"></div>
+    </div>
+</header>
 
-        <div class="section">
-            <h2>Fan</h2>
-            <div id="fan-config"></div>
-        </div>
+<!-- Main Content -->
+<main class="main">
+    <div class="nodes-grid" id="nodes-grid">
+        <!-- Node cards rendered by JS -->
     </div>
 
-    <script type="text/javascript">
-        let nodesList = [];
+    <!-- Fan Card -->
+    <div class="fan-card" id="fan-card">
+        <!-- Fan info rendered by JS -->
+    </div>
+</main>
 
-        document.addEventListener('DOMContentLoaded', function() {
-            loadNodes();
-            loadFanConfig();
+<script type="text/javascript">
+// ── Helpers ───────────────────────────────────────────────────────────
 
-            setInterval(updateTemperatures, 5000);
-        });
+function formatBytes(bytes, decimals = 1) {
+    if (bytes == null || bytes === 0) return '0 B';
+    const k = 1024;
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
+    const idx = Math.min(i, units.length - 1);
+    return parseFloat((bytes / Math.pow(k, idx)).toFixed(decimals)) + ' ' + units[idx];
+}
 
-        function loadNodes() {
-            fetch('/api/nodes')
-                .then(response => response.json())
-                .then(nodes => {
-                    nodesList = nodes;
-                    const container = document.getElementById('nodes-container');
-                    container.innerHTML = '';
+function formatBytesPerSec(bytes) {
+    return formatBytes(bytes) + '/s';
+}
 
-                    nodes.sort((a,b) => a.slot - b.slot).forEach(node => {
-                        const nodeElement = document.createElement('tr');
-                        nodeElement.className = 'node-row';
-                        nodeElement.dataset.node = node.name;
-                        nodeElement.innerHTML = `
-                            <td class="slot">Slot ${node.slot}</td>
-                            <td>${node.name}</td>
-                            <td>${node.ip}:${node.port}</td>
-                            <td class="status status-${node.enabled ? 'active' : 'inactive'}">${node.enabled ? 'Active' : 'Inactive'}</td>
-                            <td class="temperature">---</td>
-                            <td class="last-update">---</td>
-                        `;
-                        container.appendChild(nodeElement);
-                    });
+function formatUptime(seconds) {
+    if (!seconds || seconds <= 0) return '—';
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const parts = [];
+    if (d > 0) parts.push(d + 'd');
+    if (h > 0) parts.push(h + 'h');
+    parts.push(m + 'm');
+    return parts.join(' ');
+}
 
-                    updateTemperatures();
-                })
-                .catch(error => console.error('Error loading nodes:', error));
+function formatFrequency(mhz) {
+    if (!mhz) return '—';
+    if (mhz >= 1000) return (mhz / 1000).toFixed(2) + ' GHz';
+    return Math.round(mhz) + ' MHz';
+}
+
+function formatTime(isoString) {
+    if (!isoString) return '—';
+    const d = new Date(isoString);
+    return d.toLocaleString();
+}
+
+function percentColor(pct) {
+    if (pct < 60) return 'var(--color-success)';
+    if (pct < 80) return 'var(--color-warning)';
+    return 'var(--color-danger)';
+}
+
+function tempColor(temp) {
+    if (temp == null) return 'var(--color-muted)';
+    if (temp < 40) return 'var(--color-success)';
+    if (temp < 55) return 'var(--color-info)';
+    if (temp < 65) return 'var(--color-warning)';
+    return 'var(--color-danger)';
+}
+
+function diskTypeBadgeClass(type) {
+    if (!type) return 'badge-other';
+    const t = type.toLowerCase();
+    if (t === 'nvme') return 'badge-nvme';
+    if (t === 'emmc') return 'badge-emmc';
+    if (t === 'sd') return 'badge-sd';
+    if (t.includes('usb')) return 'badge-usb';
+    if (t.includes('sata')) return 'badge-sata';
+    return 'badge-other';
+}
+
+function progressBar(percent, color) {
+    const clampedPct = Math.max(0, Math.min(100, percent || 0));
+    const barColor = color || percentColor(clampedPct);
+    return `<div class="progress-bar">
+        <div class="progress-fill" style="width:${clampedPct}%;background:${barColor}"></div>
+    </div>`;
+}
+
+// ── Card Rendering ────────────────────────────────────────────────────
+
+function renderNodeCard(node) {
+    const sys = node.system;
+    const isOnline = node.online && node.enabled;
+    const isDisabled = !node.enabled;
+
+    let statusClass = 'status-offline';
+    let statusText = 'Offline';
+    if (isDisabled) { statusClass = 'status-disabled'; statusText = 'Disabled'; }
+    else if (isOnline && sys) { statusClass = 'status-online'; statusText = 'Online'; }
+    else if (isOnline) { statusClass = 'status-online'; statusText = 'Online'; }
+    else { statusClass = 'status-offline'; statusText = 'Offline'; }
+
+    // Use agent-reported description, fall back to server config description
+    const description = (sys && sys.description) || node.description || '';
+
+    let body = '';
+
+    // ── Temperature ───────────────────────────────────────────────
+    const temp = node.temperature;
+    body += `<div class="metric-section temp-section">
+        <div class="temp-display" style="color:${tempColor(temp)}">
+            ${temp != null ? temp.toFixed(1) + '°C' : '—'}
+        </div>
+    </div>`;
+
+    if (sys) {
+        // ── CPU ───────────────────────────────────────────────────
+        const cpu = sys.cpu || {};
+        const cpuPct = cpu.usage_percent ?? 0;
+        const cores = cpu.per_core_percent || [];
+        const freq = cpu.frequency || {};
+        const load = cpu.load_average || [];
+
+        let coresHtml = '';
+        if (cores.length > 0) {
+            coresHtml = '<div class="cpu-cores">';
+            cores.forEach((pct, i) => {
+                coresHtml += `<div class="core-bar-wrapper">
+                    <span class="core-label">C${i}</span>
+                    <div class="core-bar">
+                        <div class="core-bar-fill" style="width:${pct}%;background:${percentColor(pct)}"></div>
+                    </div>
+                    <span class="core-pct">${pct.toFixed(0)}%</span>
+                </div>`;
+            });
+            coresHtml += '</div>';
         }
 
-        function updateTemperatures() {
-            fetch(`/api/nodes/temperatures?timestamp=${Date.now()}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        console.error(`Error getting temperatures`, data.message);
-                        return;
-                    }
+        body += `<div class="metric-section">
+            <div class="metric-header">
+                <span class="metric-label">CPU</span>
+                <span class="metric-value">${cpuPct.toFixed(1)}%</span>
+            </div>
+            ${progressBar(cpuPct)}
+            ${coresHtml}
+            <div class="metric-details">
+                ${cpu.model && cpu.model !== 'Unknown' ? `<span title="CPU Model">${cpu.model}</span>` : ''}
+                <span title="CPU Frequency">${formatFrequency(freq.current)}${freq.max ? ' / ' + formatFrequency(freq.max) : ''}</span>
+                ${load.length ? `<span title="Load Average (1/5/15 min)">Load: ${load.join(' / ')}</span>` : ''}
+            </div>
+        </div>`;
 
-                    nodesList.forEach(node => {
-                        const nodeRow = document.querySelector(`.node-row[data-node="${node.name}"]`);
-                        if (!nodeRow) return;
+        // ── Memory ────────────────────────────────────────────────
+        const mem = sys.memory || {};
+        const memPct = mem.percent ?? 0;
+        const memUsed = mem.used ?? 0;
+        const memTotal = mem.total ?? 0;
 
-                        const statusCell = nodeRow.querySelector('.status');
-                        statusCell.classList.remove('status-active', 'status-inactive', 'status-error');
-
-                        if (!node.enabled) {
-                            statusCell.classList.add('status-inactive');
-                            statusCell.innerHTML = 'Inactive';
-                            return;
-                        }
-
-                        if (!data.temperatures || !data.temperatures[node.name]) {
-                            statusCell.classList.add('status-error');
-                            statusCell.innerHTML = 'ERROR';
-                            return;
-                        }
-
-                        statusCell.classList.add('status-active');
-                        statusCell.innerHTML = 'Active';
-
-                        const nodeData = data.temperatures[node.name] ?? {};
-
-                        const temperatureCell = nodeRow.querySelector('td.temperature');
-                        if (nodeData.temperature > 0) {
-                            temperatureCell.innerHTML = nodeData.temperature?.toFixed(1) + '°C';
-                        } else temperatureCell.innerHTML = '---';
-
-                        const lastUpdateCell = nodeRow.querySelector('.last-update');
-                        lastUpdateCell.innerHTML = nodeData.timestamp ? new Date(nodeData.timestamp).toLocaleString() : '---';
-
-                    });
-                })
-                .catch(error => {
-                    console.error(`Error getting status`, error);
-                });
-
-            fetch(`/api/fan/status?timestamp=${Date.now()}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        console.error(`Error getting temperatures`, data.message);
-                        return;
-                    }
-
-                    const fanStatusElement = document.getElementById('fan-status');
-                    fanStatusElement.innerHTML = `<strong>Current Speed:</strong> ${data.fan_speed.toFixed(0)}%`;
-                })
-                .catch(error => {
-                    console.error(`Error getting status`, error);
-                });
-
-
+        let swapHtml = '';
+        if (mem.swap_total > 0) {
+            swapHtml = `<div class="sub-metric">
+                <div class="sub-metric-header">
+                    <span class="sub-label">Swap</span>
+                    <span class="sub-value">${formatBytes(mem.swap_used)} / ${formatBytes(mem.swap_total)} (${(mem.swap_percent ?? 0).toFixed(0)}%)</span>
+                </div>
+                ${progressBar(mem.swap_percent, percentColor(mem.swap_percent ?? 0))}
+            </div>`;
         }
 
-        function loadFanConfig() {
-            fetch('/api/fan/config')
-                .then(response => response.json())
-                .then(config => {
-                    const container = document.getElementById('fan-config');
-                    container.innerHTML = `
-                        <p>
-                            Min. Temperature: ${config.min_temp}°C<br />
-                            Max. Temperature: ${config.max_temp}°C<br />
-                            Min. Speed: ${config.min_speed}%<br />
-                            Max. Speed: ${config.max_speed}%
-                        </p>
-                        <p id="fan-status"></p>
-                    `;
-                })
-                .catch(error => console.error('Error loading fan config:', error));
+        body += `<div class="metric-section">
+            <div class="metric-header">
+                <span class="metric-label">Memory</span>
+                <span class="metric-value">${memPct.toFixed(0)}%</span>
+            </div>
+            <div class="sub-metric-header">
+                <span class="sub-value">${formatBytes(memUsed)} / ${formatBytes(memTotal)}</span>
+            </div>
+            ${progressBar(memPct)}
+            ${swapHtml}
+        </div>`;
+
+        // ── Storage ───────────────────────────────────────────────
+        const disks = sys.disks || [];
+        if (disks.length > 0) {
+            let disksHtml = '';
+            disks.forEach(disk => {
+                disksHtml += `<div class="disk-item">
+                    <div class="disk-header">
+                        <span class="disk-type-badge ${diskTypeBadgeClass(disk.type)}">${disk.type || '?'}</span>
+                        <span class="disk-mount" title="${disk.device}">${disk.mountpoint}</span>
+                        <span class="disk-usage">${formatBytes(disk.used)} / ${formatBytes(disk.total)} (${(disk.percent ?? 0).toFixed(0)}%)</span>
+                    </div>
+                    ${progressBar(disk.percent)}
+                    <div class="disk-io">
+                        <span title="Read speed">R: ${formatBytesPerSec(disk.io_read_bytes_per_sec)}</span>
+                        <span title="Write speed">W: ${formatBytesPerSec(disk.io_write_bytes_per_sec)}</span>
+                    </div>
+                </div>`;
+            });
+
+            body += `<div class="metric-section">
+                <div class="metric-header">
+                    <span class="metric-label">Storage</span>
+                </div>
+                ${disksHtml}
+            </div>`;
         }
-    </script>
+
+        // ── Network ───────────────────────────────────────────────
+        const networks = sys.network || [];
+        if (networks.length > 0) {
+            let netHtml = '';
+            networks.forEach(nic => {
+                netHtml += `<div class="net-item">
+                    <div class="net-header">
+                        <span class="net-name">${nic.name}</span>
+                        ${nic.ip ? `<span class="net-ip">${nic.ip}</span>` : ''}
+                    </div>
+                    <div class="net-rates">
+                        <span class="net-down" title="Download speed">▼ ${formatBytesPerSec(nic.bytes_recv_per_sec)}</span>
+                        <span class="net-up" title="Upload speed">▲ ${formatBytesPerSec(nic.bytes_sent_per_sec)}</span>
+                    </div>
+                    <div class="net-totals">
+                        <span title="Total received since boot">▼ ${formatBytes(nic.bytes_recv_total)}</span>
+                        <span title="Total sent since boot">▲ ${formatBytes(nic.bytes_sent_total)}</span>
+                        <span class="net-since-boot">since boot</span>
+                    </div>
+                </div>`;
+            });
+
+            body += `<div class="metric-section">
+                <div class="metric-header">
+                    <span class="metric-label">Network</span>
+                </div>
+                ${netHtml}
+            </div>`;
+        }
+    }
+
+    // ── Footer ────────────────────────────────────────────────────
+    let footerParts = [];
+    if (sys) {
+        if (sys.uptime) footerParts.push(`<span title="Uptime">⏱ ${formatUptime(sys.uptime)}</span>`);
+        if (sys.os) {
+            const osLabel = sys.os.name !== 'Unknown' ? sys.os.name : '';
+            const kernelLabel = sys.os.kernel || '';
+            if (osLabel || kernelLabel) {
+                footerParts.push(`<span title="OS / Kernel">${osLabel}${kernelLabel ? ' • ' + kernelLabel : ''}</span>`);
+            }
+        }
+        if (sys.processes) footerParts.push(`<span title="Running processes">${sys.processes} processes</span>`);
+    }
+    if (node.last_update) footerParts.push(`<span class="last-update" title="Last update">${formatTime(node.last_update)}</span>`);
+
+    return `<div class="node-card ${statusClass}">
+        <div class="node-header">
+            <div class="node-identity">
+                <span class="slot-badge">Slot ${node.slot}</span>
+                <div class="node-names">
+                    <span class="node-name">${node.name}</span>
+                    ${description ? `<span class="node-description">${description}</span>` : ''}
+                </div>
+            </div>
+            <div class="node-meta">
+                <span class="node-ip">${node.ip}:${node.port}</span>
+                <span class="status-badge ${statusClass}">${statusText}</span>
+            </div>
+        </div>
+        <div class="node-body">
+            ${body}
+        </div>
+        ${footerParts.length ? `<div class="node-footer">${footerParts.join('')}</div>` : ''}
+    </div>`;
+}
+
+function renderFanCard(fan) {
+    if (!fan) return '';
+    const cfg = fan.config || {};
+    const speed = fan.speed ?? 0;
+    const speedColor = speed > 80 ? 'var(--color-danger)' : speed > 50 ? 'var(--color-warning)' : 'var(--color-success)';
+
+    return `<div class="fan-inner">
+        <div class="fan-header">
+            <h2>Fan Control</h2>
+            <div class="fan-speed" style="color:${speedColor}">${speed.toFixed(0)}%</div>
+        </div>
+        <div class="fan-bar-wrapper">
+            ${progressBar(speed, speedColor)}
+        </div>
+        <div class="fan-details">
+            <div class="fan-detail">
+                <span class="fan-detail-label">Temp Range</span>
+                <span class="fan-detail-value">${cfg.min_temp ?? '—'}°C – ${cfg.max_temp ?? '—'}°C</span>
+            </div>
+            <div class="fan-detail">
+                <span class="fan-detail-label">Speed Range</span>
+                <span class="fan-detail-value">${cfg.min_speed ?? '—'}% – ${cfg.max_speed ?? '—'}%</span>
+            </div>
+            <div class="fan-detail">
+                <span class="fan-detail-label">PWM Frequency</span>
+                <span class="fan-detail-value">${cfg.pwm_frequency ?? '—'} Hz</span>
+            </div>
+        </div>
+    </div>`;
+}
+
+function renderHeaderSummary(data) {
+    const nodes = data.nodes || [];
+    const total = nodes.length;
+    const online = nodes.filter(n => n.online && n.enabled).length;
+    const disabled = nodes.filter(n => !n.enabled).length;
+    const fanSpeed = data.fan?.speed;
+
+    let parts = [`${online}/${total - disabled} online`];
+    if (disabled > 0) parts.push(`${disabled} disabled`);
+    if (fanSpeed != null) parts.push(`Fan: ${fanSpeed.toFixed(0)}%`);
+
+    return `<span>${parts.join(' · ')}</span>`;
+}
+
+// ── Main Loop ─────────────────────────────────────────────────────────
+
+async function refresh() {
+    try {
+        const response = await fetch(`/api/dashboard?t=${Date.now()}`);
+        const data = await response.json();
+        if (!data.success) {
+            console.error('Dashboard API error:', data);
+            return;
+        }
+
+        // Update header summary
+        document.getElementById('header-summary').innerHTML = renderHeaderSummary(data);
+
+        // Update node cards
+        const grid = document.getElementById('nodes-grid');
+        grid.innerHTML = (data.nodes || []).map(renderNodeCard).join('');
+
+        // Update fan card
+        document.getElementById('fan-card').innerHTML = renderFanCard(data.fan);
+
+    } catch (error) {
+        console.error('Failed to refresh dashboard:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    refresh();
+    setInterval(refresh, 5000);
+});
+</script>
+
 </body>
 </html>
