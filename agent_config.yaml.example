@@ -5,6 +5,10 @@ server:
   port: 5001
   debug: false
 
+# Device description shown in the dashboard (optional)
+device:
+  description: "Raspberry Pi CM4, 8GB RAM"
+
 temperature:
   thermal_path: "/sys/class/thermal/thermal_zone0/temp"
   # Alternative paths for different systems:
