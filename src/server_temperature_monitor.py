@@ -15,6 +15,8 @@ class TemperatureMonitor:
         self.temperature_data = {}
         self.system_data = {}  # node_name -> latest full system data
         self.fan_speed = 0
+        self.fan_mode = 'auto'  # 'auto' or 'manual'
+        self.manual_fan_speed = 0
         self.is_running = False
         self.monitor_thread = None
         self._stop_event = threading.Event()
@@ -193,50 +195,73 @@ class TemperatureMonitor:
         logger.info(f"Stored temperature data for {node_name}: {temperature}°C")
 
     def _set_fan_speed_based_on_temperature(self):
-        """Sets the fan speed based on the current temperature data"""
+        """Sets the fan speed based on the current temperature data or manual override"""
         fan_config = self.config_manager.get_fan_config()
         if not fan_config:
             logger.warning("Fan configuration not found")
             return
 
-        min_temp = fan_config.get('min_temp', 40)
-        max_temp = fan_config.get('max_temp', 70)
-        min_speed = fan_config.get('min_speed', 30)
-        max_speed = fan_config.get('max_speed', 100)
         pwm_frequency = fan_config.get('pwm_frequency', 50)
         pwm_reverse = fan_config.get('pwm_reverse', False)
 
-        current_max_temp = float("-inf")
-        hottest_node = None
-
-        for node_name, data_list in self.temperature_data.items():
-            if not data_list:
-                continue
-
-            latest_entry = data_list[-1]
-            temperature = latest_entry['temperature']
-
-            if temperature > current_max_temp:
-                current_max_temp = temperature
-                hottest_node = node_name
-
-        # Calculate fan speed based on temperature
-        if current_max_temp < min_temp:
-            self.fan_speed = min_speed
-        elif current_max_temp > max_temp:
-            self.fan_speed = max_speed
+        if self.fan_mode == 'manual':
+            self.fan_speed = self.manual_fan_speed
+            logger.info(f"Fan in manual mode — speed fixed at {self.fan_speed}%")
         else:
-            # Linear interpolation between min and max
-            self.fan_speed = int(min_speed + (max_speed - min_speed) * (current_max_temp - min_temp) / (max_temp - min_temp))
+            min_temp = fan_config.get('min_temp', 40)
+            max_temp = fan_config.get('max_temp', 70)
+            min_speed = fan_config.get('min_speed', 30)
+            max_speed = fan_config.get('max_speed', 100)
+
+            current_max_temp = float("-inf")
+            hottest_node = None
+
+            for node_name, data_list in self.temperature_data.items():
+                if not data_list:
+                    continue
+
+                latest_entry = data_list[-1]
+                temperature = latest_entry['temperature']
+
+                if temperature > current_max_temp:
+                    current_max_temp = temperature
+                    hottest_node = node_name
+
+            # Calculate fan speed based on temperature
+            if current_max_temp < min_temp:
+                self.fan_speed = min_speed
+            elif current_max_temp > max_temp:
+                self.fan_speed = max_speed
+            else:
+                # Linear interpolation between min and max
+                self.fan_speed = int(min_speed + (max_speed - min_speed) * (current_max_temp - min_temp) / (max_temp - min_temp))
+
+            logger.info(f"Setting fan speed to {self.fan_speed}% based on temperature {current_max_temp}°C ({hottest_node})")
 
         # Set the actual fan speed via GPIO PWM
-        logger.info(f"Setting fan speed to {self.fan_speed}% based on temperature {current_max_temp}°C ({hottest_node})")
         if not self.debug and self._gpio_handle is not None:
             speed = self.fan_speed
             if pwm_reverse:
                 speed = 100 - speed
             # lgpio tx_pwm expects duty cycle as 0-100 percentage
             lgpio.tx_pwm(self._gpio_handle, self.gpio_pin, pwm_frequency, speed)
+
+    def set_manual_speed(self, speed: int):
+        """Switch to manual mode and set a fixed fan speed (0–100)"""
+        self.manual_fan_speed = max(0, min(100, speed))
+        self.fan_mode = 'manual'
+        logger.info(f"Fan switched to manual mode at {self.manual_fan_speed}%")
+        self._set_fan_speed_based_on_temperature()
+
+    def set_auto_mode(self):
+        """Switch back to automatic fan control"""
+        self.fan_mode = 'auto'
+        logger.info("Fan switched back to auto mode")
+        self._set_fan_speed_based_on_temperature()
+
+    def apply_fan_config(self):
+        """Re-apply fan config (e.g. after config update) — triggers immediate PWM update"""
+        self._set_fan_speed_based_on_temperature()
 
     def get_latest_temperatures(self) -> Dict[str, Any]:
         """Returns the latest temperature data of all nodes"""
@@ -263,3 +288,7 @@ class TemperatureMonitor:
     def get_fan_speed(self) -> int:
         """Returns the current fan speed"""
         return self.fan_speed
+
+    def get_fan_mode(self) -> str:
+        """Returns the current fan mode ('auto' or 'manual')"""
+        return self.fan_mode

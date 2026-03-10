@@ -713,6 +713,323 @@ body {
     color: var(--color-text-secondary);
 }
 
+/* ── Fan Mode Badge ────────────────────────────────────────────────── */
+
+.fan-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fan-mode-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.fan-mode-auto {
+    background: rgba(16,185,129,0.12);
+    color: var(--color-success);
+    border: 1px solid rgba(16,185,129,0.25);
+}
+
+.fan-mode-manual {
+    background: rgba(245,158,11,0.12);
+    color: var(--color-warning);
+    border: 1px solid rgba(245,158,11,0.25);
+}
+
+/* ── Fan Override Controls ─────────────────────────────────────────── */
+
+.fan-override {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.fan-override-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fan-override-label {
+    font-family: var(--font-body);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-dim);
+    font-weight: 600;
+}
+
+.fan-override-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.fan-override-input-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.fan-override-input-group input[type="number"] {
+    width: 56px;
+    padding: 6px 6px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xs);
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+}
+
+.fan-override-input-group input[type="number"]::-webkit-inner-spin-button,
+.fan-override-input-group input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.fan-override-input-group input[type="number"]:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px rgba(6,182,212,0.15);
+}
+
+.fan-input-unit {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-dim);
+}
+
+/* ── Range slider ──────────────────────────────────────────────────── */
+
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    min-width: 100px;
+    height: 5px;
+    background: var(--color-border);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 2px solid var(--color-bg-raised);
+    box-shadow: 0 0 6px rgba(6,182,212,0.4);
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 12px rgba(6,182,212,0.6);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 2px solid var(--color-bg-raised);
+    box-shadow: 0 0 6px rgba(6,182,212,0.4);
+    cursor: pointer;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────── */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: rgba(6,182,212,0.15);
+    color: var(--color-accent);
+    border-color: rgba(6,182,212,0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: rgba(6,182,212,0.25);
+    box-shadow: 0 0 12px rgba(6,182,212,0.2);
+}
+
+.btn-accent {
+    background: rgba(245,158,11,0.15);
+    color: var(--color-warning);
+    border-color: rgba(245,158,11,0.3);
+}
+
+.btn-accent:hover:not(:disabled) {
+    background: rgba(245,158,11,0.25);
+    box-shadow: 0 0 12px rgba(245,158,11,0.2);
+}
+
+.btn-dim {
+    background: rgba(100,116,139,0.1);
+    color: var(--color-dim);
+    border-color: rgba(100,116,139,0.2);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--color-muted);
+    border: none;
+    padding: 8px 0;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    width: 100%;
+    text-align: center;
+}
+
+.btn-ghost:hover {
+    color: var(--color-accent);
+}
+
+/* ── Fan Settings Toggle ───────────────────────────────────────────── */
+
+.fan-settings-toggle {
+    margin-top: 12px;
+    border-top: 1px solid var(--color-border-subtle);
+    padding-top: 10px;
+}
+
+/* ── Fan Settings Panel ────────────────────────────────────────────── */
+
+.fan-settings {
+    padding-top: 14px;
+    border-top: 1px solid var(--color-border-subtle);
+    margin-top: 4px;
+}
+
+.fan-settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.fan-setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fan-setting-label {
+    font-family: var(--font-body);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-dim);
+    font-weight: 600;
+}
+
+.fan-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fan-setting-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.fan-setting-field-wide {
+    max-width: 100px;
+}
+
+.fan-setting-sublabel {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--color-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fan-setting-sep {
+    font-family: var(--font-mono);
+    color: var(--color-dim);
+    font-size: 14px;
+    padding-top: 12px;
+}
+
+.fan-settings input[type="number"] {
+    width: 100%;
+    padding: 6px 8px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xs);
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+}
+
+.fan-settings input[type="number"]::-webkit-inner-spin-button,
+.fan-settings input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.fan-settings input[type="number"]:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px rgba(6,182,212,0.15);
+}
+
+.fan-settings-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.fan-save-status {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    transition: opacity 0.3s;
+}
+
+.fan-save-ok  { color: var(--color-success); }
+.fan-save-err { color: var(--color-danger); }
+
 /* ══════════════════════════════════════════════════════════════════════
    Responsive
    ══════════════════════════════════════════════════════════════════════ */
@@ -739,6 +1056,19 @@ body {
 
     .fan-inner { padding: 14px; }
     .fan-speed { font-size: 24px; }
+
+    .fan-settings-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .fan-override-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .fan-override-controls .btn {
+        width: 100%;
+    }
 
     .disk-header {
         flex-direction: column;

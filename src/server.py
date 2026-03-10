@@ -10,7 +10,7 @@ _config_path = os.path.join(_project_root, 'config.yaml')
 runtime_dir = os.environ.get('RUNTIME_DIRECTORY', '/tmp')
 os.chdir(runtime_dir)
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from server_config_manager import ConfigManager
 from server_temperature_monitor import TemperatureMonitor
 import logging
@@ -81,12 +81,15 @@ def api_dashboard():
 
         nodes.append(entry)
 
+    fan_mode = temperature_monitor.get_fan_mode()
+
     return jsonify({
         'success': True,
         'nodes': nodes,
         'fan': {
             'config': fan_config,
             'speed': fan_speed,
+            'mode': fan_mode,
         },
     })
 
@@ -122,10 +125,74 @@ def api_fan_config():
 def api_fan_status():
     """API endpoint to get fan status"""
     fan_speed = temperature_monitor.get_fan_speed()
+    fan_mode = temperature_monitor.get_fan_mode()
     return jsonify({
         'success': True,
-        'fan_speed': fan_speed
+        'fan_speed': fan_speed,
+        'fan_mode': fan_mode,
     })
+
+
+@app.route('/api/fan/override', methods=['POST'])
+def api_fan_override():
+    """Set manual fan speed override (0–100)"""
+    data = request.get_json(silent=True) or {}
+    speed = data.get('speed')
+    if speed is None:
+        return jsonify({'success': False, 'error': 'Missing "speed" parameter'}), 400
+    try:
+        speed = int(speed)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': '"speed" must be an integer (0–100)'}), 400
+    if not (0 <= speed <= 100):
+        return jsonify({'success': False, 'error': '"speed" must be between 0 and 100'}), 400
+
+    temperature_monitor.set_manual_speed(speed)
+    return jsonify({'success': True, 'mode': 'manual', 'speed': speed})
+
+
+@app.route('/api/fan/auto', methods=['POST'])
+def api_fan_auto():
+    """Switch fan back to automatic mode"""
+    temperature_monitor.set_auto_mode()
+    return jsonify({'success': True, 'mode': 'auto', 'speed': temperature_monitor.get_fan_speed()})
+
+
+@app.route('/api/fan/config', methods=['POST'])
+def api_fan_config_update():
+    """Update fan configuration and save to config.yaml"""
+    data = request.get_json(silent=True) or {}
+
+    # Validate and convert numeric fields
+    updates = {}
+    int_fields = {
+        'min_temp': (0, 120),
+        'max_temp': (0, 120),
+        'min_speed': (0, 100),
+        'max_speed': (0, 100),
+        'pwm_frequency': (1, 100000),
+    }
+
+    for field, (lo, hi) in int_fields.items():
+        if field in data:
+            try:
+                val = int(data[field])
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': f'"{field}" must be an integer'}), 400
+            if not (lo <= val <= hi):
+                return jsonify({'success': False, 'error': f'"{field}" must be between {lo} and {hi}'}), 400
+            updates[field] = val
+
+    if 'pwm_reverse' in data:
+        updates['pwm_reverse'] = bool(data['pwm_reverse'])
+
+    if not updates:
+        return jsonify({'success': False, 'error': 'No valid fields to update'}), 400
+
+    config_manager.update_fan_config(updates)
+    temperature_monitor.apply_fan_config()
+
+    return jsonify({'success': True, 'config': config_manager.get_fan_config()})
 
 
 if __name__ == '__main__':

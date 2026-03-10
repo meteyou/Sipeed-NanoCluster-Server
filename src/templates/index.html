@@ -286,18 +286,49 @@ function renderNodeCard(node, index) {
 
 // ── Fan Card ──────────────────────────────────────────────────────────
 
+// ── Fan state (preserved across refreshes) ────────────────────────────
+let fanSettingsOpen = false;
+
 function renderFanCard(fan) {
     if (!fan) return '';
     const cfg = fan.config || {};
     const speed = fan.speed ?? 0;
+    const mode = fan.mode || 'auto';
+    const isManual = mode === 'manual';
     const sc = speed > 80 ? 'var(--color-danger)' : speed > 50 ? 'var(--color-warning)' : 'var(--color-success)';
+
+    const modeLabel = isManual ? 'Manual' : 'Auto';
+    const modeBadgeClass = isManual ? 'fan-mode-manual' : 'fan-mode-auto';
 
     return `<div class="fan-inner">
         <div class="fan-header">
-            <h2>Fan Control</h2>
+            <div class="fan-header-left">
+                <h2>Fan Control</h2>
+                <span class="fan-mode-badge ${modeBadgeClass}">${modeLabel}</span>
+            </div>
             <div class="fan-speed" style="color:${sc}">${speed.toFixed(0)}%</div>
         </div>
         <div class="fan-bar-wrapper">${bar(speed, sc)}</div>
+
+        <!-- Manual Override -->
+        <div class="fan-override">
+            <div class="fan-override-row">
+                <label class="fan-override-label" for="fan-manual-speed">Manual Speed</label>
+                <div class="fan-override-controls">
+                    <input type="range" id="fan-manual-slider" min="0" max="100" value="${isManual ? speed : 50}"
+                           oninput="document.getElementById('fan-manual-speed').value=this.value">
+                    <div class="fan-override-input-group">
+                        <input type="number" id="fan-manual-speed" min="0" max="100" value="${isManual ? speed : 50}"
+                               oninput="document.getElementById('fan-manual-slider').value=this.value">
+                        <span class="fan-input-unit">%</span>
+                    </div>
+                    <button class="btn btn-primary" onclick="setFanManual()">Set</button>
+                    <button class="btn ${isManual ? 'btn-accent' : 'btn-dim'}" onclick="setFanAuto()" ${!isManual ? 'disabled' : ''}>Auto</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config Details (read-only summary) -->
         <div class="fan-details">
             <div class="fan-detail">
                 <span class="fan-detail-label">Temp Range</span>
@@ -312,7 +343,123 @@ function renderFanCard(fan) {
                 <span class="fan-detail-value">${cfg.pwm_frequency ?? '—'} Hz</span>
             </div>
         </div>
+
+        <!-- Settings toggle -->
+        <button class="btn btn-ghost fan-settings-toggle" onclick="toggleFanSettings()">
+            ${fanSettingsOpen ? '▲ Hide Settings' : '▼ Edit Settings'}
+        </button>
+
+        <!-- Editable Settings Panel -->
+        <div class="fan-settings" id="fan-settings" style="display:${fanSettingsOpen ? 'block' : 'none'}">
+            <div class="fan-settings-grid">
+                <div class="fan-setting-group">
+                    <label class="fan-setting-label">Temp Range (°C)</label>
+                    <div class="fan-setting-row">
+                        <div class="fan-setting-field">
+                            <span class="fan-setting-sublabel">Min</span>
+                            <input type="number" id="cfg-min-temp" value="${cfg.min_temp ?? 40}" min="0" max="120">
+                        </div>
+                        <span class="fan-setting-sep">–</span>
+                        <div class="fan-setting-field">
+                            <span class="fan-setting-sublabel">Max</span>
+                            <input type="number" id="cfg-max-temp" value="${cfg.max_temp ?? 70}" min="0" max="120">
+                        </div>
+                    </div>
+                </div>
+                <div class="fan-setting-group">
+                    <label class="fan-setting-label">Speed Range (%)</label>
+                    <div class="fan-setting-row">
+                        <div class="fan-setting-field">
+                            <span class="fan-setting-sublabel">Min</span>
+                            <input type="number" id="cfg-min-speed" value="${cfg.min_speed ?? 30}" min="0" max="100">
+                        </div>
+                        <span class="fan-setting-sep">–</span>
+                        <div class="fan-setting-field">
+                            <span class="fan-setting-sublabel">Max</span>
+                            <input type="number" id="cfg-max-speed" value="${cfg.max_speed ?? 100}" min="0" max="100">
+                        </div>
+                    </div>
+                </div>
+                <div class="fan-setting-group">
+                    <label class="fan-setting-label">PWM Frequency (Hz)</label>
+                    <div class="fan-setting-row">
+                        <div class="fan-setting-field fan-setting-field-wide">
+                            <input type="number" id="cfg-pwm-freq" value="${cfg.pwm_frequency ?? 50}" min="1" max="100000">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="fan-settings-actions">
+                <button class="btn btn-primary" onclick="saveFanConfig()">Save to Config</button>
+                <span class="fan-save-status" id="fan-save-status"></span>
+            </div>
+        </div>
     </div>`;
+}
+
+// ── Fan API actions ───────────────────────────────────────────────────
+
+async function setFanManual() {
+    const speed = parseInt(document.getElementById('fan-manual-speed').value, 10);
+    if (isNaN(speed) || speed < 0 || speed > 100) return;
+    try {
+        const res = await fetch('/api/fan/override', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({speed}),
+        });
+        if (res.ok) refresh();
+    } catch (e) { console.error('Failed to set fan override:', e); }
+}
+
+async function setFanAuto() {
+    try {
+        const res = await fetch('/api/fan/auto', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+        });
+        if (res.ok) refresh();
+    } catch (e) { console.error('Failed to set fan auto:', e); }
+}
+
+function toggleFanSettings() {
+    fanSettingsOpen = !fanSettingsOpen;
+    const el = document.getElementById('fan-settings');
+    if (el) el.style.display = fanSettingsOpen ? 'block' : 'none';
+    // Re-render to update toggle button text
+    const toggleBtn = document.querySelector('.fan-settings-toggle');
+    if (toggleBtn) toggleBtn.textContent = fanSettingsOpen ? '▲ Hide Settings' : '▼ Edit Settings';
+}
+
+async function saveFanConfig() {
+    const payload = {
+        min_temp: parseInt(document.getElementById('cfg-min-temp').value, 10),
+        max_temp: parseInt(document.getElementById('cfg-max-temp').value, 10),
+        min_speed: parseInt(document.getElementById('cfg-min-speed').value, 10),
+        max_speed: parseInt(document.getElementById('cfg-max-speed').value, 10),
+        pwm_frequency: parseInt(document.getElementById('cfg-pwm-freq').value, 10),
+    };
+
+    const statusEl = document.getElementById('fan-save-status');
+    try {
+        const res = await fetch('/api/fan/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (statusEl) { statusEl.textContent = '✓ Saved'; statusEl.className = 'fan-save-status fan-save-ok'; }
+            refresh();
+        } else {
+            if (statusEl) { statusEl.textContent = '✗ ' + (data.error || 'Error'); statusEl.className = 'fan-save-status fan-save-err'; }
+        }
+    } catch (e) {
+        if (statusEl) { statusEl.textContent = '✗ Network error'; statusEl.className = 'fan-save-status fan-save-err'; }
+        console.error('Failed to save fan config:', e);
+    }
+    // Clear status after 3s
+    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
 }
 
 // ── Header Summary ────────────────────────────────────────────────────

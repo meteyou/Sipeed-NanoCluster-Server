@@ -90,6 +90,15 @@ class ConfigManager:
         with open(self.config_path, 'w') as file:
             yaml.dump(self.config, file, default_flow_style=False)
 
+    def update_fan_config(self, updates: Dict[str, Any]):
+        """Update the fan configuration with the given values and save to disk"""
+        fan = self.config.setdefault('fan', {})
+        allowed_keys = {'min_temp', 'max_temp', 'min_speed', 'max_speed', 'pwm_frequency', 'pwm_reverse', 'gpio_pin', 'gpio_chip'}
+        for key, value in updates.items():
+            if key in allowed_keys:
+                fan[key] = value
+        self.save_config()
+
     def get_temperature_monitoring_config(self) -> Dict[str, Any]:
         """Get the temperature monitoring configuration"""
         return self.config.get('temperature_monitoring', {})
