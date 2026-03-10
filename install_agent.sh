@@ -69,7 +69,7 @@ sudo -u "$SERVICE_USER" python3 -m venv "$PYTHON_VENV"
 # Install dependencies
 echo "Installing Python dependencies..."
 sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install --upgrade pip
-sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml waitress
+sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml waitress psutil
 
 # Copy example configuration file if it doesn't exist
 if [ ! -f "$INSTALL_DIR/agent_config.yaml" ]; then
@@ -121,4 +121,5 @@ echo "To view logs:"
 echo "  sudo journalctl -u $SERVICE_NAME -f"
 echo ""
 echo "To test the API:"
+echo "  curl http://localhost:5001/api/system"
 echo "  curl http://localhost:5001/api/temperature"
