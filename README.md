@@ -51,10 +51,8 @@ sudo ./install_server.sh
 ```
 
 The installation script automatically performs the following steps:
-- Installation of `pigpio` and `python3-pigpio` via apt when available
-- On Debian Trixie: build and install `pigpiod` from upstream source as fallback
-- Enable and start the `pigpiod` daemon
-- Create service user `sipeed-nanocluster`
+- Installation of `python3-lgpio` for GPIO control (works on all current Pi OS versions including Trixie)
+- Create service user `sipeed-nanocluster` and add to `gpio` group
 - Install all Python dependencies
 - Copy example configuration
 - Set up systemd service
@@ -106,6 +104,7 @@ nodes:
     enabled: true
 
 fan:
+  gpio_chip: 0             # GPIO chip number (0 for Pi 4, 4 for Pi 5)
   gpio_pin: 13             # GPIO pin for fan control
   min_temp: 40             # Minimum temperature (°C)
   max_temp: 70             # Maximum temperature (°C)
@@ -133,6 +132,7 @@ For each node in the cluster:
 - **enabled**: `true` for active monitoring, `false` to disable
 
 #### Fan Control
+- **gpio_chip**: GPIO chip number — `0` for Raspberry Pi 4 and older, `4` for Raspberry Pi 5
 - **gpio_pin**: GPIO pin for PWM fan control (default: Pin 13)
 - **min_temp/max_temp**: Temperature range for fan regulation
 - **min_speed/max_speed**: Fan speed in percent (0-100%)
@@ -267,8 +267,9 @@ sudo journalctl -u sipeed-nanocluster-agent -f
 # Check logs
 sudo journalctl -u sipeed-nanocluster-server -f
 
-# Check pigpio daemon
-sudo systemctl status pigpiod
+# Check GPIO access (user must be in gpio group)
+ls -la /dev/gpiochip*
+groups sipeed-nanocluster
 ```
 
 ### Agent connection failed

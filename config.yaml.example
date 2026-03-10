@@ -27,6 +27,7 @@ nodes:
     enabled: false
 
 fan:
+  gpio_chip: 0              # GPIO chip number (0 for Pi 4, 4 for Pi 5)
   gpio_pin: 13
   min_temp: 40
   max_temp: 70

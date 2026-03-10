@@ -4,7 +4,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from server_config_manager import ConfigManager
-import pigpio
+import lgpio
 
 logger = logging.getLogger(__name__)
 
@@ -17,14 +17,21 @@ class TemperatureMonitor:
         self.is_running = False
         self.monitor_thread = None
         self._stop_event = threading.Event()
+        self._gpio_handle = None
 
-        # The debug mode allows running without pigpio for testing purposes
+        # The debug mode allows running without GPIO for testing purposes
         self.debug = self.config_manager.get_temperature_monitoring_config().get('debug', False)
 
         if not self.debug:
-            self.pi = pigpio.pi()
-            if not self.pi.connected:
-                raise RuntimeError("No connection to pigpio daemon. Make sure it is running.")
+            fan_config = self.config_manager.get_fan_config()
+            gpio_chip = fan_config.get('gpio_chip', 0)
+            try:
+                self._gpio_handle = lgpio.gpiochip_open(gpio_chip)
+            except lgpio.error as e:
+                raise RuntimeError(
+                    f"Failed to open GPIO chip {gpio_chip}. "
+                    f"Make sure /dev/gpiochip{gpio_chip} exists and you have permission to access it."
+                ) from e
 
         self.gpio_pin = self.config_manager.get_fan_config().get('gpio_pin', 13)
 
@@ -49,6 +56,16 @@ class TemperatureMonitor:
         self._stop_event.set()
         if self.monitor_thread:
             self.monitor_thread.join(timeout=5)
+
+        # Close GPIO handle
+        if self._gpio_handle is not None:
+            try:
+                lgpio.tx_pwm(self._gpio_handle, self.gpio_pin, 0, 0)
+                lgpio.gpiochip_close(self._gpio_handle)
+                self._gpio_handle = None
+            except lgpio.error:
+                pass
+
         logger.info("Temperature monitoring stopped")
 
     def _monitor_loop(self):
@@ -170,15 +187,14 @@ class TemperatureMonitor:
             # Linear interpolation between min and max
             self.fan_speed = int(min_speed + (max_speed - min_speed) * (current_max_temp - min_temp) / (max_temp - min_temp))
 
-        # Here you would set the actual fan speed using GPIO or other methods
+        # Set the actual fan speed via GPIO PWM
         logger.info(f"Setting fan speed to {self.fan_speed}% based on temperature {current_max_temp}°C ({hottest_node})")
-        if not self.debug:
+        if not self.debug and self._gpio_handle is not None:
             speed = self.fan_speed
             if pwm_reverse:
                 speed = 100 - speed
-            # duty_cycle needs to be in the range of 0-1000000 for pigpio
-            duty_cycle = int(speed * 10000)
-            self.pi.hardware_PWM(self.gpio_pin, pwm_frequency, duty_cycle)
+            # lgpio tx_pwm expects duty cycle as 0-100 percentage
+            lgpio.tx_pwm(self._gpio_handle, self.gpio_pin, pwm_frequency, speed)
 
     def get_latest_temperatures(self) -> Dict[str, Any]:
         """Returns the latest temperature data of all nodes"""
