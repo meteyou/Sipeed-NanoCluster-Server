@@ -310,25 +310,7 @@ function renderFanCard(fan) {
         </div>
         <div class="fan-bar-wrapper">${bar(speed, sc)}</div>
 
-        <!-- Manual Override -->
-        <div class="fan-override">
-            <div class="fan-override-row">
-                <label class="fan-override-label" for="fan-manual-speed">Manual Speed</label>
-                <div class="fan-override-controls">
-                    <input type="range" id="fan-manual-slider" min="0" max="100" value="${isManual ? speed : 50}"
-                           oninput="document.getElementById('fan-manual-speed').value=this.value">
-                    <div class="fan-override-input-group">
-                        <input type="number" id="fan-manual-speed" min="0" max="100" value="${isManual ? speed : 50}"
-                               oninput="document.getElementById('fan-manual-slider').value=this.value">
-                        <span class="fan-input-unit">%</span>
-                    </div>
-                    <button class="btn btn-primary" onclick="setFanManual()">Set</button>
-                    <button class="btn ${isManual ? 'btn-accent' : 'btn-dim'}" onclick="setFanAuto()" ${!isManual ? 'disabled' : ''}>Auto</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Config Details (read-only summary) -->
+        <!-- Config Details (read-only summary, directly below speed) -->
         <div class="fan-details">
             <div class="fan-detail">
                 <span class="fan-detail-label">Temp Range</span>
@@ -349,8 +331,28 @@ function renderFanCard(fan) {
             ${fanSettingsOpen ? '▲ Hide Settings' : '▼ Edit Settings'}
         </button>
 
-        <!-- Editable Settings Panel -->
+        <!-- Editable Settings Panel (includes manual override) -->
         <div class="fan-settings" id="fan-settings" style="display:${fanSettingsOpen ? 'block' : 'none'}">
+
+            <!-- Manual Override -->
+            <div class="fan-override">
+                <div class="fan-override-row">
+                    <label class="fan-override-label">Manual Speed</label>
+                    <div class="fan-override-controls">
+                        <input type="range" id="fan-manual-slider" min="0" max="100" value="${isManual ? speed : 50}"
+                               oninput="document.getElementById('fan-manual-speed').value=this.value">
+                        <div class="fan-override-input-group">
+                            <input type="number" id="fan-manual-speed" min="0" max="100" value="${isManual ? speed : 50}"
+                                   oninput="document.getElementById('fan-manual-slider').value=this.value">
+                            <span class="fan-input-unit">%</span>
+                        </div>
+                        <button class="btn btn-primary" onclick="setFanManual()">Set</button>
+                        <button class="btn ${isManual ? 'btn-accent' : 'btn-dim'}" onclick="setFanAuto()" ${!isManual ? 'disabled' : ''}>Auto</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Editable Config Fields -->
             <div class="fan-settings-grid">
                 <div class="fan-setting-group">
                     <label class="fan-setting-label">Temp Range (°C)</label>
