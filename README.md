@@ -87,14 +87,14 @@ server:
 
 temperature_monitoring:
   interval_seconds: 30     # Polling interval in seconds
-  endpoint: "/api/temperature"  # API endpoint on clients
+  endpoint: "/api/temperature"  # API endpoint on agents
   timeout: 5               # HTTP timeout in seconds
 
 nodes:
   - name: "cluster-cm4-1"  # Node name (unique)
     slot: 1                # Physical slot in cluster
     ip: "192.168.1.101"    # IP address of node
-    port: 5001             # Port of client service
+    port: 5001             # Port of agent service
     enabled: true          # Node active/inactive
 
   - name: "cluster-cm4-2"
@@ -120,7 +120,7 @@ fan:
 
 #### Temperature Monitoring
 - **interval_seconds**: How often (in seconds) all nodes are polled
-- **endpoint**: API path on client nodes for temperature queries
+- **endpoint**: API path on agent nodes for temperature queries
 - **timeout**: HTTP timeout for node queries
 
 #### Nodes
@@ -128,7 +128,7 @@ For each node in the cluster:
 - **name**: Unique name of the node
 - **slot**: Physical slot number in the NanoCluster
 - **ip**: IP address of the node
-- **port**: Port of the client service (default: 5001)
+- **port**: Port of the agent service (default: 5001)
 - **enabled**: `true` for active monitoring, `false` to disable
 
 #### Fan Control
@@ -165,7 +165,7 @@ The installation script:
 
 ### 3. Adjust Agent configuration
 ```bash
-sudo nano /opt/sipeed-nanocluster-server/client_config.yaml
+sudo nano /opt/sipeed-nanocluster-server/agent_config.yaml
 ```
 
 Adjust the configuration to match your node's settings, especially the path to
@@ -186,7 +186,7 @@ curl http://localhost:5001/api/temperature
 
 ```yaml
 server:
-  host: "0.0.0.0"          # Client bind address
+  host: "0.0.0.0"          # Agent bind address
   port: 5001               # Port for temperature API
   debug: false             # Debug mode on/off
 
@@ -255,8 +255,8 @@ sudo journalctl -u sipeed-nanocluster-agent -f
 - `GET /api/fan/config` - Fan configuration
 - `GET /api/fan/status` - Current fan status
 
-### Client API (Port 5001)
-- `GET /` - Client status page
+### Agent API (Port 5001)
+- `GET /` - Agent status page
 - `GET /api/temperature` - Current node temperature
 - `GET /api/health` - Health check
 
@@ -274,11 +274,11 @@ groups sipeed-nanocluster
 
 ### Agent connection failed
 ```bash
-# Client service status
+# Agent service status
 sudo systemctl status sipeed-nanocluster-agent
 
 # Test network connectivity
-curl http://<client-ip>:5001/api/health
+curl http://<node-ip>:5001/api/health
 
 # Check thermal zone
 cat /sys/class/thermal/thermal_zone0/temp
