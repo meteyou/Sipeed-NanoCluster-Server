@@ -96,7 +96,7 @@ def shutdown():
 
     try:
         subprocess.Popen(
-            ["sudo", "shutdown", "-h", "+0"],
+            ["/usr/bin/sudo", "/sbin/shutdown", "-h", "+0"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
