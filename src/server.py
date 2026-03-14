@@ -114,6 +114,53 @@ def api_nodes_temperatures():
     })
 
 
+@app.route('/api/nodes/status')
+def api_nodes_status():
+    """API endpoint to get online/offline status of all nodes"""
+    statuses = temperature_monitor.get_node_statuses()
+    return jsonify({
+        'success': True,
+        'statuses': statuses
+    })
+
+
+@app.route('/api/nodes/<node_name>/shutdown', methods=['POST'])
+def api_node_shutdown(node_name):
+    """API endpoint to shut down a specific node via its agent"""
+    nodes = config_manager.get_nodes()
+    node = next((n for n in nodes if n['name'] == node_name), None)
+
+    if not node:
+        return jsonify({'success': False, 'error': f'Node {node_name} not found'}), 404
+
+    success = temperature_monitor.shutdown_node(node)
+    return jsonify({
+        'success': success,
+        'message': f'Shutdown {"initiated" if success else "failed"} for {node_name}'
+    })
+
+
+@app.route('/api/cluster/shutdown', methods=['POST'])
+def api_cluster_shutdown():
+    """Shut down all non-master nodes (all except slot 1)"""
+    nodes = config_manager.get_nodes()
+    master_slot = 1
+    results = {}
+
+    for node in nodes:
+        if node['slot'] == master_slot:
+            continue
+        if not node.get('enabled', False):
+            continue
+        success = temperature_monitor.shutdown_node(node)
+        results[node['name']] = success
+
+    return jsonify({
+        'success': True,
+        'results': results
+    })
+
+
 @app.route('/api/fan/config')
 def api_fan_config():
     """API endpoint to get fan configuration"""

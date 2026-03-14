@@ -21,9 +21,43 @@
 <header class="header">
     <div class="header-inner">
         <h1 class="header-title">Sipeed NanoCluster</h1>
-        <div class="header-summary" id="header-summary"></div>
+        <div class="header-right">
+            <div class="header-summary" id="header-summary"></div>
+            <button class="btn btn-danger-header" onclick="startClusterShutdown()" title="Shutdown all nodes">⏻ Shutdown</button>
+        </div>
     </div>
 </header>
+
+<!-- Shutdown Confirm Dialog -->
+<div id="confirm-overlay" class="shutdown-overlay hidden">
+    <div class="shutdown-overlay-content shutdown-overlay-small">
+        <h2>Confirm Cluster Shutdown</h2>
+        <p>Are you sure you want to shut down all cluster nodes?</p>
+        <p class="shutdown-info-text">Worker nodes will be shut down first, then you can shut down the master.</p>
+        <div class="shutdown-confirm-buttons">
+            <button class="btn btn-ghost" onclick="cancelConfirm()">Cancel</button>
+            <button class="btn btn-danger-header" onclick="confirmClusterShutdown()">Shutdown All</button>
+        </div>
+    </div>
+</div>
+
+<!-- Shutdown Progress Overlay -->
+<div id="shutdown-overlay" class="shutdown-overlay hidden">
+    <div class="shutdown-overlay-content">
+        <h2>Cluster Shutdown</h2>
+        <div id="shutdown-status-list"></div>
+        <div id="shutdown-master-section" class="hidden">
+            <div class="shutdown-master-ready">
+                <p>All worker nodes are offline. Ready to shut down master.</p>
+                <button class="btn btn-danger-header btn-large" onclick="shutdownMaster()">⏻ Shutdown Master (Slot 1)</button>
+            </div>
+        </div>
+        <div id="shutdown-complete" class="hidden">
+            <p class="shutdown-final-text">Master node is shutting down…<br>This page will become unreachable.</p>
+        </div>
+        <button id="btn-cancel-shutdown" class="btn btn-ghost" onclick="cancelShutdownOverlay()">Close</button>
+    </div>
+</div>
 
 <!-- Main Content -->
 <main class="main">
@@ -287,6 +321,7 @@ function renderNodeCard(node, index) {
             <div class="node-meta">
                 <span class="node-ip">${node.ip}:${node.port}</span>
                 <span class="status-badge ${sc}"><span class="status-dot"></span>${st}</span>
+                ${online ? `<button class="btn-node-shutdown" onclick="shutdownSingleNode('${node.name}')" title="Shutdown ${node.name}">⏻</button>` : ''}
             </div>
         </div>
         <div class="node-body">${body}</div>
@@ -506,6 +541,133 @@ async function refresh() {
     } catch (e) {
         console.error('Dashboard refresh failed:', e);
     }
+}
+
+// ── Shutdown Logic ────────────────────────────────────────────────────
+
+let shutdownInProgress = false;
+let shutdownPollInterval = null;
+let masterNodeName = null;
+let workerNodeNames = [];
+
+function shutdownSingleNode(nodeName) {
+    if (!confirm(`Shut down node "${nodeName}"?`)) return;
+    fetch(`/api/nodes/${nodeName}/shutdown`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) alert(`Shutdown failed: ${data.error || data.message}`);
+        })
+        .catch(err => alert(`Error: ${err}`));
+}
+
+function startClusterShutdown() {
+    document.getElementById('confirm-overlay').classList.remove('hidden');
+}
+
+function cancelConfirm() {
+    document.getElementById('confirm-overlay').classList.add('hidden');
+}
+
+function confirmClusterShutdown() {
+    document.getElementById('confirm-overlay').classList.add('hidden');
+    shutdownInProgress = true;
+
+    // Determine master and workers from latest dashboard data
+    fetch(`/api/dashboard?t=${Date.now()}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            masterNodeName = null;
+            workerNodeNames = [];
+            (data.nodes || []).forEach(n => {
+                if (n.slot === 1) masterNodeName = n.name;
+                else if (n.enabled) workerNodeNames.push(n.name);
+            });
+
+            // Build status list
+            const statusList = document.getElementById('shutdown-status-list');
+            statusList.innerHTML = '';
+            workerNodeNames.forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'shutdown-node-item';
+                div.id = `shutdown-status-${name}`;
+                div.innerHTML = `
+                    <span class="shutdown-node-name">${name}</span>
+                    <span class="shutdown-node-state state-pending">Sending…</span>
+                `;
+                statusList.appendChild(div);
+            });
+
+            // Show overlay
+            document.getElementById('shutdown-overlay').classList.remove('hidden');
+            document.getElementById('shutdown-master-section').classList.add('hidden');
+            document.getElementById('shutdown-complete').classList.add('hidden');
+            document.getElementById('btn-cancel-shutdown').classList.remove('hidden');
+
+            // Send cluster shutdown
+            return fetch('/api/cluster/shutdown', { method: 'POST' });
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert('Cluster shutdown failed'); return; }
+            for (const [name, success] of Object.entries(data.results)) {
+                const el = document.querySelector(`#shutdown-status-${name} .shutdown-node-state`);
+                if (!el) continue;
+                if (success) {
+                    el.textContent = 'Shutting down…';
+                    el.className = 'shutdown-node-state state-shutting-down';
+                } else {
+                    el.textContent = 'Failed to send';
+                    el.className = 'shutdown-node-state state-error';
+                }
+            }
+            startShutdownPolling();
+        })
+        .catch(err => alert(`Error: ${err}`));
+}
+
+function startShutdownPolling() {
+    if (shutdownPollInterval) clearInterval(shutdownPollInterval);
+    shutdownPollInterval = setInterval(pollShutdownStatus, 3000);
+}
+
+function pollShutdownStatus() {
+    fetch(`/api/nodes/status?t=${Date.now()}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            let allOff = true;
+            workerNodeNames.forEach(name => {
+                const el = document.querySelector(`#shutdown-status-${name} .shutdown-node-state`);
+                if (!el) return;
+                if (data.statuses[name] === false) {
+                    el.textContent = 'Offline ✓';
+                    el.className = 'shutdown-node-state state-offline';
+                } else {
+                    allOff = false;
+                }
+            });
+            if (allOff && workerNodeNames.length > 0) {
+                clearInterval(shutdownPollInterval);
+                shutdownPollInterval = null;
+                document.getElementById('shutdown-master-section').classList.remove('hidden');
+                document.getElementById('btn-cancel-shutdown').classList.add('hidden');
+            }
+        })
+        .catch(err => console.error('Shutdown poll error:', err));
+}
+
+function shutdownMaster() {
+    if (!masterNodeName) { alert('Master node not found'); return; }
+    document.getElementById('shutdown-master-section').classList.add('hidden');
+    document.getElementById('shutdown-complete').classList.remove('hidden');
+    fetch(`/api/nodes/${masterNodeName}/shutdown`, { method: 'POST' }).catch(() => {});
+}
+
+function cancelShutdownOverlay() {
+    document.getElementById('shutdown-overlay').classList.add('hidden');
+    if (shutdownPollInterval) { clearInterval(shutdownPollInterval); shutdownPollInterval = null; }
+    shutdownInProgress = false;
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -68,7 +68,7 @@ fi
 # Create service user
 echo "Creating service user..."
 if ! id "$SERVICE_USER" &>/dev/null; then
-    useradd --system --shell /bin/false --home-dir "$INSTALL_DIR" --create-home "$SERVICE_USER"
+    useradd --system --shell /bin/false --home-dir "$INSTALL_DIR" --no-create-home "$SERVICE_USER"
     echo "Created user: $SERVICE_USER"
 else
     echo "User $SERVICE_USER already exists"
@@ -80,13 +80,15 @@ if getent group gpio >/dev/null 2>&1; then
     echo "Added $SERVICE_USER to gpio group"
 fi
 
-# Create or update Python virtual environment
+# Create or update Python virtual environment (owned by service user)
 if [ -d "$PYTHON_VENV" ]; then
     echo "Virtual environment already exists, updating..."
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$PYTHON_VENV"
 else
     echo "Creating Python virtual environment..."
-    python3 -m venv --system-site-packages "$PYTHON_VENV"
-    chown -R "$SERVICE_USER:$SERVICE_USER" "$PYTHON_VENV"
+    mkdir -p "$PYTHON_VENV"
+    chown "$SERVICE_USER:$SERVICE_USER" "$PYTHON_VENV"
+    sudo -u "$SERVICE_USER" python3 -m venv --system-site-packages "$PYTHON_VENV"
 fi
 
 # Install/update dependencies
@@ -98,9 +100,20 @@ sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install -r requirements.txt
 if [ ! -f "$INSTALL_DIR/config.yaml" ]; then
     echo "Creating default configuration file..."
     cp "$INSTALL_DIR/config.yaml.example" "$INSTALL_DIR/config.yaml"
-    chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/config.yaml"
     echo "Please edit $INSTALL_DIR/config.yaml to configure the server."
 fi
+
+# Config file must be writable by service user
+echo "Setting ownership of configuration files..."
+chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/config.yaml"
+
+# Setup sudoers for passwordless shutdown (master node also runs an agent)
+echo "Setting up sudoers for shutdown..."
+cat > "/etc/sudoers.d/${SERVICE_USER}" << EOF
+# Allow the service user to shut down the system without a password
+${SERVICE_USER} ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/poweroff
+EOF
+chmod 440 "/etc/sudoers.d/${SERVICE_USER}"
 
 # Create systemd service file
 echo "Creating systemd service file..."

@@ -14,6 +14,7 @@ class TemperatureMonitor:
         self.config_manager = config_manager
         self.temperature_data = {}
         self.system_data = {}  # node_name -> latest full system data
+        self.node_online_status = {}  # node_name -> True/False
         self.fan_speed = 0
         self.fan_mode = 'auto'  # 'auto' or 'manual'
         self.manual_fan_speed = 0
@@ -100,6 +101,7 @@ class TemperatureMonitor:
                 if sys_data:
                     sys_data['timestamp'] = datetime.now().isoformat()
                     self.system_data[node['name']] = sys_data
+                    self.node_online_status[node['name']] = True
 
                     # Also store temperature for fan control
                     temperature = sys_data.get('temperature')
@@ -111,7 +113,11 @@ class TemperatureMonitor:
                 temperature = self._poll_node_temperature(node, endpoint, timeout)
                 if temperature is not None:
                     self._store_temperature_data(node, temperature)
+                    self.node_online_status[node['name']] = True
+                else:
+                    self.node_online_status[node['name']] = False
             except Exception as e:
+                self.node_online_status[node['name']] = False
                 logger.error(f"Failed to poll node {node['name']}: {e}")
 
     def _poll_node_system(self, node: Dict[str, Any], timeout: int) -> Optional[Dict[str, Any]]:
@@ -292,3 +298,23 @@ class TemperatureMonitor:
     def get_fan_mode(self) -> str:
         """Returns the current fan mode ('auto' or 'manual')"""
         return self.fan_mode
+
+    def get_node_statuses(self) -> Dict[str, bool]:
+        """Returns the online/offline status for all enabled nodes"""
+        return self.node_online_status.copy()
+
+    def shutdown_node(self, node: Dict[str, Any]) -> bool:
+        """Sends a shutdown request to a node's agent. Returns True if request was accepted."""
+        config = self.config_manager.get_temperature_monitoring_config()
+        timeout = config.get('timeout', 5)
+        url = f"http://{node['ip']}:{node['port']}/api/shutdown"
+
+        try:
+            logger.warning(f"Sending shutdown request to {node['name']} at {url}")
+            response = requests.post(url, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            return data.get('success', False)
+        except Exception as e:
+            logger.error(f"Failed to send shutdown to {node['name']}: {e}")
+            return False

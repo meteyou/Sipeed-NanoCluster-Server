@@ -52,19 +52,25 @@ fi
 # Create service user
 echo "Creating service user..."
 if ! id "$SERVICE_USER" &>/dev/null; then
-    useradd --system --shell /bin/false --home-dir "$INSTALL_DIR" --create-home "$SERVICE_USER"
+    useradd --system --shell /bin/false --home-dir "$INSTALL_DIR" --no-create-home "$SERVICE_USER"
     echo "Created user: $SERVICE_USER"
 else
     echo "User $SERVICE_USER already exists"
 fi
 
-# Set ownership of installation directory
+# Set ownership only for directories/files the service user needs to write
 echo "Setting up directory permissions..."
-chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 
-# Create Python virtual environment
-echo "Setting up Python virtual environment..."
-sudo -u "$SERVICE_USER" python3 -m venv "$PYTHON_VENV"
+# Create or update Python virtual environment (owned by service user)
+if [ -d "$PYTHON_VENV" ]; then
+    echo "Virtual environment already exists, updating..."
+    chown -R "$SERVICE_USER:$SERVICE_USER" "$PYTHON_VENV"
+else
+    echo "Creating Python virtual environment..."
+    mkdir -p "$PYTHON_VENV"
+    chown "$SERVICE_USER:$SERVICE_USER" "$PYTHON_VENV"
+    sudo -u "$SERVICE_USER" python3 -m venv "$PYTHON_VENV"
+fi
 
 # Install dependencies
 echo "Installing Python dependencies..."
@@ -74,9 +80,18 @@ sudo -u "$SERVICE_USER" "$PYTHON_VENV/bin/pip" install flask pyyaml waitress psu
 # Copy example configuration file if it doesn't exist
 if [ ! -f "$INSTALL_DIR/agent_config.yaml" ]; then
     echo "Creating default configuration file..."
-    sudo -u "$SERVICE_USER" cp "$INSTALL_DIR/agent_config.yaml.example" "$INSTALL_DIR/agent_config.yaml"
-    echo "Please edit $INSTALL_DIR/agent_config.yaml to configure the agent."
+    cp "$INSTALL_DIR/agent_config.yaml.example" "$INSTALL_DIR/agent_config.yaml"
 fi
+# Config file must be writable by service user
+chown "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR/agent_config.yaml"
+
+# Setup sudoers for passwordless shutdown
+echo "Setting up sudoers for shutdown..."
+cat > "/etc/sudoers.d/${SERVICE_USER}" << EOF
+# Allow the service user to shut down the system without a password
+${SERVICE_USER} ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/poweroff
+EOF
+chmod 440 "/etc/sudoers.d/${SERVICE_USER}"
 
 # Create systemd service file
 echo "Creating systemd service file..."

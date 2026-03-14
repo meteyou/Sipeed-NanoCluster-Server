@@ -7,6 +7,7 @@ This service is designed to run on each cluster node.
 
 from flask import Flask, jsonify
 import os
+import subprocess
 import logging
 import atexit
 from waitress import serve
@@ -82,6 +83,32 @@ def get_temperature():
             'success': False,
             'error': 'Failed to read temperature',
             'thermal_path': temp_reader.thermal_path
+        }), 500
+
+
+@app.route('/api/shutdown', methods=['POST'])
+def shutdown():
+    """
+    API endpoint to shut down this node.
+    Executes 'sudo shutdown -h now' after a short delay so the response can be sent.
+    """
+    logger.warning("Shutdown requested via API!")
+
+    try:
+        subprocess.Popen(
+            ["sudo", "shutdown", "-h", "+0"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return jsonify({
+            'success': True,
+            'message': 'Shutdown initiated'
+        })
+    except Exception as e:
+        logger.error(f"Failed to initiate shutdown: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to initiate shutdown: {e}'
         }), 500
 
 

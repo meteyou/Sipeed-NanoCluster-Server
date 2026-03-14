@@ -943,6 +943,173 @@ input[type="range"]::-moz-range-thumb {
     color: var(--color-accent);
 }
 
+/* ── Header Shutdown Button ────────────────────────────────────────── */
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.btn-danger-header {
+    background: rgba(239,68,68,0.15);
+    color: var(--color-danger);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: var(--radius-sm);
+    padding: 6px 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-danger-header:hover {
+    background: rgba(239,68,68,0.25);
+    box-shadow: 0 0 12px rgba(239,68,68,0.2);
+}
+
+.btn-large {
+    padding: 10px 24px;
+    font-size: 14px;
+}
+
+/* ── Node Card Shutdown Button ─────────────────────────────────────── */
+
+.btn-node-shutdown {
+    background: rgba(239,68,68,0.1);
+    color: var(--color-danger);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: var(--radius-xs);
+    padding: 3px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1;
+}
+
+.btn-node-shutdown:hover {
+    background: rgba(239,68,68,0.25);
+    box-shadow: 0 0 8px rgba(239,68,68,0.15);
+}
+
+/* ── Shutdown Overlay ──────────────────────────────────────────────── */
+
+.shutdown-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.shutdown-overlay.hidden {
+    display: none;
+}
+
+.shutdown-overlay-content {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 28px;
+    min-width: 400px;
+    max-width: 500px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.shutdown-overlay-content h2 {
+    margin-top: 0;
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.02em;
+}
+
+.shutdown-overlay-content p {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--color-muted);
+    line-height: 1.5;
+}
+
+.shutdown-overlay-small {
+    min-width: 360px;
+}
+
+/* Shutdown node status items */
+.shutdown-node-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    margin: 6px 0;
+    background: var(--color-bg);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--color-border);
+}
+
+.shutdown-node-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.shutdown-node-state {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.state-pending       { color: var(--color-dim); }
+.state-shutting-down { color: var(--color-warning); }
+.state-offline       { color: var(--color-success); }
+.state-error         { color: var(--color-danger); }
+
+.shutdown-info-text {
+    font-size: 12px !important;
+    color: var(--color-dim) !important;
+}
+
+.shutdown-confirm-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.shutdown-master-ready {
+    text-align: center;
+    margin: 16px 0;
+    padding: 16px;
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: var(--radius-sm);
+}
+
+.shutdown-master-ready p {
+    color: var(--color-warning);
+    margin-bottom: 12px;
+}
+
+.shutdown-final-text {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--color-danger) !important;
+    text-align: center;
+    font-size: 14px !important;
+    padding: 16px 0;
+}
+
+#btn-cancel-shutdown {
+    margin-top: 16px;
+    width: 100%;
+}
+
 /* ── Fan Settings Toggle ───────────────────────────────────────────── */
 
 .fan-settings-toggle {
