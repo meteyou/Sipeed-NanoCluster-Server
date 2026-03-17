@@ -284,6 +284,39 @@ curl http://<node-ip>:5001/api/health
 cat /sys/class/thermal/thermal_zone0/temp
 ```
 
+## 🐳 Using docker
+
+The container recipe in [Dockerfile](./docker/Dockerfile) contains an environment ready to run [pigpio](https://abyz.me.uk/rpi/pigpio/pigpiod.html)
+and the python scripts for both server and agent mode.
+
+> [!IMPORTANT]
+> pigpio does not work on Raspberry Pi 5 boards, see [joan2937/pigpio - 586](https://github.com/joan2937/pigpio/issues/586)
+
+> [!WARNING]
+> Since pigpiod needs to access hardware-level resources, this container will require elevated permissions to run.
+
+For example, running a server instance:
+```
+docker run -d --privileged -p 5000:5000 \
+  -v /proc/cpuinfo:/proc/cpuinfo:ro \
+  -v /dev/vcio:/dev/vcio \
+  -v /dev/mem:/dev/mem \
+  -v /dev/gpiomem:/dev/gpiomem \
+  -v /sys/class/thermal:/sys/class/thermal \
+  sipeed-nano-cluster-server server
+```
+Or running an agent:
+```
+docker run -d --privileged -p 5001:5001 \
+  -v /proc/cpuinfo:/proc/cpuinfo:ro \
+  -v /dev/vcio:/dev/vcio \
+  -v /dev/mem:/dev/mem \
+  -v /dev/gpiomem:/dev/gpiomem \
+  -v /sys/class/thermal:/sys/class/thermal \
+  sipeed-nano-cluster-server agent
+```
+
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please create an issue or pull request. This project
